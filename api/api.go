@@ -9,8 +9,10 @@ import (
 	"github.com/nyaruka/phonenumbers"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"go.mau.fi/whatsmeow"
+	"go.mau.fi/whatsmeow/proto/waE2E"
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
+	"google.golang.org/protobuf/proto"
 )
 
 type Group struct {
@@ -156,6 +158,21 @@ func (a *Api) GetChatList() ([]ChatElement, error) {
 		}
 	}
 	return ce, nil
+}
+
+func (a *Api) SendMessage(jid string, msg string) (string, error) {
+	recipient, err := types.ParseJID(jid)
+	if err != nil {
+		return "", err
+	}
+	message := &waE2E.Message{
+		Conversation: proto.String(msg),
+	}
+	res, err := a.waClient.SendMessage(a.ctx, recipient, message)
+	if err != nil {
+		return "", err
+	}
+	return res.ID, nil
 }
 
 func (a *Api) mainEventHandler(evt interface{}) {
