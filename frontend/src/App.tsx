@@ -4,8 +4,9 @@ import { EventsOn } from "../wailsjs/runtime/runtime";
 import QRCode from "qrcode";
 import { ChatListScreen } from "./screens/ChatScreen";
 import { LoginScreen } from "./screens/LoginScreen";
+import { SettingsScreen } from "./screens/SettingsScreen";
 
-type Screen = "login" | "chats";
+type Screen = "login" | "chats" | "settings";
 
 function App() {
   const [screen, setScreen] = useState<Screen>("login");
@@ -77,7 +78,13 @@ function App() {
         />
       )}
 
-      {screen === "chats" && <ChatListScreen />}
+      {(screen === "chats" || screen === "settings") && (
+        <div className={screen === "settings" ? "hidden" : "contents"}>
+          <ChatListScreen onOpenSettings={() => setScreen("settings")} />
+        </div>
+      )}
+      
+      {screen === "settings" && <SettingsScreen onBack={() => setScreen("chats")} />}
     </div>
   );
 }

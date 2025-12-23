@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FetchGroups, FetchContacts } from "../../wailsjs/go/api/Api";
+import { GetChatList } from "../../wailsjs/go/api/Api";
 import { api } from "../../wailsjs/go/models";
 
 type ChatItem = {
@@ -10,32 +10,23 @@ type ChatItem = {
     timestamp?: number;
 };
 
-export function ChatListScreen() {
+export function ChatListScreen({ onOpenSettings }: { onOpenSettings: () => void }) {
     const [chats, setChats] = useState<ChatItem[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
 
     useEffect(() => {
-        Promise.all([FetchGroups(), FetchContacts()]).then(([groups, contacts]) => {
-            const groupItems: ChatItem[] = (groups || [])
-                .filter((g: api.Group) => g.name)
-                .map((g: api.Group) => ({
-                    id: g.jid,
-                    name: g.name,
-                    subtitle: g.topic || "",
-                    type: 'group'
-                }));
-
-            const contactItems: ChatItem[] = (contacts || [])
-                .filter((c: api.Contact) => c.full_name || c.push_name || c.short)
-                .map((c: api.Contact) => ({
+        GetChatList().then((chatElements) => {
+            const items: ChatItem[] = (chatElements || []).map((c: api.ChatElement) => {
+                const isGroup = c.jid.endsWith('@g.us');
+                return {
                     id: c.jid,
-                    name: c.full_name || c.push_name,
-                    subtitle: "Available",
-                    type: 'contact'
-                }));
-
-            setChats([...groupItems, ...contactItems]);
+                    name: c.full_name || c.push_name || c.short || c.jid,
+                    subtitle: c.latest_message || "",
+                    type: isGroup ? 'group' : 'contact'
+                };
+            });
+            setChats(items);
         }).catch(console.error);
     }, []);
 
@@ -56,7 +47,7 @@ export function ChatListScreen() {
                         <button title="New Chat">
                             <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M19.005 3.175H4.674C3.642 3.175 3 3.789 3 4.821V21.02l3.544-3.514h12.461c1.033 0 2.064-1.06 2.064-2.093V4.821c-.001-1.032-1.032-1.646-2.064-1.646zm-4.989 9.869H6.666V11.5h7.35v1.544zm3.35-4.135H6.666V7.36h10.7v1.55z"></path></svg>
                         </button>
-                        <button title="Menu">
+                        <button title="Menu" onClick={onOpenSettings}>
                             <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 7a2 2 0 1 0-.001-4.001A2 2 0 0 0 12 7zm0 2a2 2 0 1 0-.001 3.999A2 2 0 0 0 12 9zm0 6a2 2 0 1 0-.001 3.999A2 2 0 0 0 12 15z"></path></svg>
                         </button>
                     </div>
