@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/lugvitc/whats4linux/internal/mstore"
 	"github.com/lugvitc/whats4linux/internal/wa"
@@ -138,6 +139,7 @@ func (a *Api) FetchMessages(jid string) ([]mstore.Message, error) {
 		return nil, err
 	}
 	messages := a.messageStore.GetMessages(parsedJID)
+	log.Printf("BRUH: %+v\n", messages)
 	return messages, nil
 }
 

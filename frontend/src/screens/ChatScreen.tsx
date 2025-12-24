@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { GetChatList } from "../../wailsjs/go/api/Api";
 import { api } from "../../wailsjs/go/models";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
+import { ChatDetail } from "./ChatDetail";
 
 type ChatItem = {
     id: string;
@@ -15,6 +16,17 @@ export function ChatListScreen({ onOpenSettings }: { onOpenSettings: () => void 
     const [chats, setChats] = useState<ChatItem[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+    const [selectedChatName, setSelectedChatName] = useState<string>("");
+
+    const handleChatSelect = (chat: ChatItem) => {
+        setSelectedChatId(chat.id);
+        setSelectedChatName(chat.name);
+    };
+
+    const handleBack = () => {
+        setSelectedChatId(null);
+        setSelectedChatName("");
+    };
 
     const fetchChats = () => {
         GetChatList()
@@ -53,7 +65,9 @@ export function ChatListScreen({ onOpenSettings }: { onOpenSettings: () => void 
 
     return (
         <div className="flex h-screen bg-light-secondary dark:bg-black overflow-hidden">
-            <div className="w-[400px] flex flex-col border-r border-gray-200 dark:border-[#1a1a1a] bg-white dark:bg-black">
+            {/* Left Sidebar - Chat List */}
+            <div className={`${selectedChatId ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-[400px] border-r border-gray-200 dark:border-[#1a1a1a] bg-white dark:bg-black h-full`}>
+                {/* Header */}
                 <div className="h-16 bg-light-secondary dark:bg-[#0d0d0d] flex items-center justify-between px-4 border-b border-gray-200 dark:border-[#1a1a1a]">
                     <div className="w-10 h-10 rounded-full bg-gray-300 dark:bg-gray-600 overflow-hidden">
                         <svg className="w-full h-full text-gray-500 dark:text-gray-400" fill="currentColor" viewBox="0 0 24 24">
@@ -89,7 +103,7 @@ export function ChatListScreen({ onOpenSettings }: { onOpenSettings: () => void 
                     {filteredChats.map((chat) => (
                         <div 
                             key={chat.id}
-                            onClick={() => setSelectedChatId(chat.id)}
+                            onClick={() => handleChatSelect(chat)}
                             className={`flex items-center p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-[#1a1a1a] ${selectedChatId === chat.id ? 'bg-gray-200 dark:bg-[#2a2a2a]' : ''}`}
                         >
                             <div className="w-12 h-12 rounded-full bg-gray-300 dark:bg-gray-600 mr-4 flex-shrink-0 overflow-hidden flex items-center justify-center">
@@ -111,25 +125,25 @@ export function ChatListScreen({ onOpenSettings }: { onOpenSettings: () => void 
                 </div>
             </div>
 
-            {/* Chat Area Placeholder */}
-            <div className="flex-1 bg-[#efeae2] dark:bg-[#0d0d0d] flex flex-col relative">
-                <div className="absolute inset-0 opacity-40 dark:opacity-5 pointer-events-none" style={{ backgroundImage: "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')" }}></div>
-                
+            {/* Right Side - Chat Detail */}
+            <div className={`${selectedChatId ? 'flex' : 'hidden md:flex'} flex-1 flex-col h-full bg-[#efeae2] dark:bg-[#0d0d0d] relative`}>
                 {selectedChatId ? (
-                    <div className="flex-1 flex items-center justify-center z-10">
-                        <div className="text-center">
-                            <h2 className="text-2xl text-gray-600 dark:text-gray-300 mb-4">Chat with {chats.find(c => c.id === selectedChatId)?.name}</h2>
-                            <p className="text-gray-500">Messages will appear here</p>
-                        </div>
-                    </div>
+                    <ChatDetail chatId={selectedChatId} chatName={selectedChatName} onBack={handleBack} />
                 ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center z-10 text-center px-10">
+                    <div className="flex-1 flex flex-col items-center justify-center z-10 text-center px-10 border-b-[6px] border-[#43d187]">
+                        <div className="mb-8">
+                            <svg viewBox="0 0 24 24" width="120" height="120" className="fill-current text-gray-300 dark:text-gray-600">
+                                <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
+                            </svg>
+                        </div>
                         <h1 className="text-3xl font-light text-gray-600 dark:text-gray-300 mb-4">WhatsApp for Linux</h1>
-                        <p className="text-gray-500 dark:text-gray-400">Send and receive messages without keeping your phone online.</p>
+                        <p className="text-gray-500 dark:text-gray-400">
+                            Send and receive messages without keeping your phone online.<br/>
+                            Use WhatsApp on up to 4 linked devices and 1 phone.
+                        </p>
                     </div>
                 )}
             </div>
         </div>
     );
 }
-  
