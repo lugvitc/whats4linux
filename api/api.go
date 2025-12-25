@@ -223,12 +223,23 @@ func (a *Api) GetChatList() ([]ChatElement, error) {
 	return ce, nil
 }
 
-func (a *Api) GetProfile() (Contact, error) {
+func (a *Api) GetProfile(jidStr string) (Contact, error) {
+	var targetJID types.JID
+	if jidStr == "" {
+		if a.waClient.Store.ID == nil {
+			return Contact{}, fmt.Errorf("not logged in")
+		}
+		targetJID = *a.waClient.Store.ID
+	} else {
+		var err error
+		targetJID, err = types.ParseJID(jidStr)
+		if err != nil {
+			return Contact{}, fmt.Errorf("invalid JID: %w", err)
+		}
+	}
 
-	me := *a.waClient.Store.ID
-
-	contact, _ := a.waClient.Store.Contacts.GetContact(a.ctx, me)
-	rawNum := "+" + me.User
+	contact, _ := a.waClient.Store.Contacts.GetContact(a.ctx, targetJID)
+	rawNum := "+" + targetJID.User
 
 	jid := rawNum
 	num, err := phonenumbers.Parse(rawNum, "")
@@ -236,7 +247,7 @@ func (a *Api) GetProfile() (Contact, error) {
 		jid = phonenumbers.Format(num, phonenumbers.INTERNATIONAL)
 	}
 
-	pic, _ := a.waClient.GetProfilePictureInfo(a.ctx, me, &whatsmeow.GetProfilePictureParams{
+	pic, _ := a.waClient.GetProfilePictureInfo(a.ctx, targetJID, &whatsmeow.GetProfilePictureParams{
 		Preview: true,
 	})
 	var avatarURL string
@@ -244,14 +255,21 @@ func (a *Api) GetProfile() (Contact, error) {
 		avatarURL = pic.URL
 	}
 
+	pushName := contact.PushName
+	// If it's self, try to get pushname from store if contact pushname is empty
+	if jidStr == "" && a.waClient.Store.PushName != "" {
+		pushName = a.waClient.Store.PushName
+	}
+
 	return Contact{
 		JID:        jid,
 		FullName:   contact.FullName,
 		Short:      contact.FirstName,
-		PushName:   a.waClient.Store.PushName,
+		PushName:   pushName,
 		IsBusiness: contact.BusinessName != "",
 		AvatarURL:  avatarURL,
 	}, nil
+}
 func (a *Api) SendMessage(chatJID string, message string) error {
 	if a.waClient.Store.ID == nil {
 		return fmt.Errorf("client not logged in")

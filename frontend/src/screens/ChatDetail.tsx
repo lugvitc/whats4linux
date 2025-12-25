@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { FetchMessages, DownloadMedia, SendMessage } from "../../wailsjs/go/api/Api";
+import { FetchMessages, DownloadMedia, SendMessage, GetProfile } from "../../wailsjs/go/api/Api";
 import { mstore } from "../../wailsjs/go/models";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 
@@ -222,7 +222,7 @@ function MediaContent({ message, type, chatId }: { message: mstore.Message, type
                 )
             )}
             {!thumbnail && (
-                <div className={type === 'sticker' ? "bg-transparent flex items-center justify-center" : "w-48 h-48 bg-gray-200 dark:bg-gray-700 flex items-center justify-center rounded-lg"} style={type === 'sticker' ? { width: 195, height: 195, borderRadius: 12 } : undefined}>
+                <div className={type === 'sticker' ? "bg-transparent flex items-center justify-center" : "w-64 h-64 bg-gray-200 dark:bg-gray-700 flex items-center justify-center rounded-lg"} style={type === 'sticker' ? { width: 195, height: 195, borderRadius: 12 } : undefined}>
                     <span className="text-gray-500 dark:text-gray-400">{type.toUpperCase()}</span>
                 </div>
             )}
@@ -243,13 +243,58 @@ function MediaContent({ message, type, chatId }: { message: mstore.Message, type
     );
 }
 
+function QuotedMessage({ contextInfo }: { contextInfo: any }) {
+    const [name, setName] = useState<string>("");
+
+    useEffect(() => {
+        const participant = contextInfo.participant || contextInfo.Participant;
+        if (participant) {
+            GetProfile(participant).then((contact: any) => {
+                setName(contact.full_name || contact.push_name || contact.jid);
+            })
+        }
+    }, [contextInfo]);
+
+    const quoted = contextInfo.quotedMessage || contextInfo.QuotedMessage;
+    if (!quoted) return null;
+
+    let text = "Unsupported message";
+    if (quoted.conversation) text = quoted.conversation;
+    else if (quoted.extendedTextMessage?.text) text = quoted.extendedTextMessage.text;
+    else if (quoted.imageMessage) text = "📷 Photo";
+    else if (quoted.videoMessage) text = "🎥 Video";
+    else if (quoted.audioMessage) text = "🎵 Audio";
+    else if (quoted.documentMessage) text = "📄 Document";
+    else if (quoted.stickerMessage) text = "💟 Sticker";
+
+    return (
+        <div className="bg-black/5 dark:bg-white/10 rounded-md p-2 mb-2 border-l-4 border-[#00a884] dark:border-[#00a884] text-sm cursor-pointer">
+            <div className="font-bold text-[#00a884] dark:text-[#00a884] text-xs mb-1">{name}</div>
+            <div className="line-clamp-2 text-gray-600 dark:text-gray-300 text-xs">{text}</div>
+        </div>
+    );
+}
+
 function MessageItem({ message, chatId }: { message: mstore.Message, chatId: string }) {
     const isMe = message.Info.IsFromMe;
     const senderName = message.Info.PushName || "Unknown";
     const isTemp = message.Info.ID.startsWith("temp-");
     const isSticker = !!message.Content?.stickerMessage;
+    const isImageOrVideo = !!(message.Content?.imageMessage || message.Content?.videoMessage);
     const timeStr = new Date(message.Info.Timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     
+    // Check for quoted message
+    const contextInfo = message.Content?.extendedTextMessage?.contextInfo ||
+                        message.Content?.imageMessage?.contextInfo ||
+                        message.Content?.videoMessage?.contextInfo ||
+                        message.Content?.audioMessage?.contextInfo ||
+                        message.Content?.stickerMessage?.contextInfo ||
+                        message.Content?.documentMessage?.contextInfo ||
+                        message.Content?.contactMessage?.contextInfo ||
+                        message.Content?.locationMessage?.contextInfo;
+
+    const hasQuote = contextInfo && (contextInfo.quotedMessage);
+
     // Determine content
     let content: React.ReactNode = "";
 
@@ -315,7 +360,7 @@ function MessageItem({ message, chatId }: { message: mstore.Message, chatId: str
         }
     }
 
-    if (isSticker) {
+    if (isSticker && !hasQuote) {
         return (
             <div className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                 <div className={`${isMe ? 'ml-2' : 'mr-2'} flex flex-col items-start`}>
@@ -334,7 +379,7 @@ function MessageItem({ message, chatId }: { message: mstore.Message, chatId: str
                                     ) : (
                                         <svg viewBox="0 0 16 15" width="12" height="12" className="fill-current">
                                             <path d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.541l1.32 1.266c.143.14.361.125.484-.033l6.272-7.674a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-7.674a.365.365 0 0 0-.063-.51z"/>
-                                        </svg>
+                                                </svg>
                                     )}
                                 </span>
                             )}
@@ -347,7 +392,7 @@ function MessageItem({ message, chatId }: { message: mstore.Message, chatId: str
 
     return (
         <div className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[70%] rounded-lg p-2 px-3 shadow-sm relative group ${
+            <div className={`${isImageOrVideo ? 'max-w-[30%]' : 'max-w-[70%]'} rounded-lg p-2 px-3 shadow-sm relative group ${
                 isMe 
                 ? 'bg-[#d9fdd3] dark:bg-[#005c4b] text-gray-900 dark:text-gray-100 rounded-tr-none' 
                 : 'bg-white dark:bg-[#202c33] text-gray-900 dark:text-gray-100 rounded-tl-none'
@@ -357,6 +402,9 @@ function MessageItem({ message, chatId }: { message: mstore.Message, chatId: str
                         {senderName}
                     </div>
                 )}
+                
+                {hasQuote && <QuotedMessage contextInfo={contextInfo} />}
+
                 <div className="text-sm whitespace-pre-wrap break-words">
                     {content}
                 </div>
