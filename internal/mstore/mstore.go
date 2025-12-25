@@ -41,6 +41,21 @@ func (ms *MessageStore) GetMessages(jid types.JID) []Message {
 	return ms.msgMap[jid]
 }
 
+func (ms *MessageStore) GetMessage(chatJID types.JID, messageID string) *Message {
+	ms.mu.RLock()
+	defer ms.mu.RUnlock()
+	msgs, ok := ms.msgMap[chatJID]
+	if !ok {
+		return nil
+	}
+	for _, msg := range msgs {
+		if msg.Info.ID == messageID {
+			return &msg
+		}
+	}
+	return nil
+}
+
 type ChatMessage struct {
 	JID         types.JID
 	MessageText string

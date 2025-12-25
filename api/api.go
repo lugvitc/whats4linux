@@ -2,14 +2,15 @@ package api
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
-	"log"
 
 	"github.com/lugvitc/whats4linux/internal/mstore"
 	"github.com/lugvitc/whats4linux/internal/wa"
 	"github.com/nyaruka/phonenumbers"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"go.mau.fi/whatsmeow"
+	"go.mau.fi/whatsmeow/proto/waE2E"
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
 	waLog "go.mau.fi/whatsmeow/util/log"
@@ -141,8 +142,42 @@ func (a *Api) FetchMessages(jid string) ([]mstore.Message, error) {
 		return nil, err
 	}
 	messages := a.messageStore.GetMessages(parsedJID)
-	log.Printf("BRUH: %+v\n", messages)
+
 	return messages, nil
+}
+
+func (a *Api) DownloadMedia(chatJID string, messageID string) (string, error) {
+	parsedJID, err := types.ParseJID(chatJID)
+	if err != nil {
+		return "", err
+	}
+	msg := a.messageStore.GetMessage(parsedJID, messageID)
+	if msg == nil {
+		return "", fmt.Errorf("message not found")
+	}
+
+	var data []byte
+	var downloadErr error
+
+	if msg.Content.ImageMessage != nil {
+		data, downloadErr = a.waClient.Download(a.ctx, msg.Content.ImageMessage)
+	} else if msg.Content.VideoMessage != nil {
+		data, downloadErr = a.waClient.Download(a.ctx, msg.Content.VideoMessage)
+	} else if msg.Content.AudioMessage != nil {
+		data, downloadErr = a.waClient.Download(a.ctx, msg.Content.AudioMessage)
+	} else if msg.Content.DocumentMessage != nil {
+		data, downloadErr = a.waClient.Download(a.ctx, msg.Content.DocumentMessage)
+	} else if msg.Content.StickerMessage != nil {
+		data, downloadErr = a.waClient.Download(a.ctx, msg.Content.StickerMessage)
+	} else {
+		return "", fmt.Errorf("no media content found")
+	}
+
+	if downloadErr != nil {
+		return "", downloadErr
+	}
+
+	return base64.StdEncoding.EncodeToString(data), nil
 }
 
 func (a *Api) GetChatList() ([]ChatElement, error) {
@@ -217,6 +252,41 @@ func (a *Api) GetProfile() (Contact, error) {
 		IsBusiness: contact.BusinessName != "",
 		AvatarURL:  avatarURL,
 	}, nil
+func (a *Api) SendMessage(chatJID string, message string) error {
+	if a.waClient.Store.ID == nil {
+		return fmt.Errorf("client not logged in")
+	}
+
+	parsedJID, err := types.ParseJID(chatJID)
+	if err != nil {
+		return err
+	}
+
+	msgContent := &waE2E.Message{
+		Conversation: &message,
+	}
+
+	resp, err := a.waClient.SendMessage(a.ctx, parsedJID, msgContent)
+	if err != nil {
+		return err
+	}
+
+	// Manually add to store and emit event so UI updates immediately
+	a.messageStore.ProcessMessageEvent(&events.Message{
+		Info: types.MessageInfo{
+			ID:        resp.ID,
+			Timestamp: resp.Timestamp,
+			MessageSource: types.MessageSource{
+				Chat:     parsedJID,
+				IsFromMe: true,
+				Sender:   *a.waClient.Store.ID,
+			},
+		},
+		Message: msgContent,
+	})
+	runtime.EventsEmit(a.ctx, "wa:new_message")
+
+	return nil
 }
 
 func (a *Api) mainEventHandler(evt interface{}) {
