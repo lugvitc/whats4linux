@@ -10,6 +10,7 @@ type ChatItem = {
     subtitle: string;
     type: 'group' | 'contact';
     timestamp?: number;
+    avatar?: string;
 };
 
 export function ChatListScreen({ onOpenSettings }: { onOpenSettings: () => void }) {
@@ -17,15 +18,18 @@ export function ChatListScreen({ onOpenSettings }: { onOpenSettings: () => void 
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
     const [selectedChatName, setSelectedChatName] = useState<string>("");
+    const [selectedChatAvatar, setSelectedChatAvatar] = useState<string | undefined>(undefined);
 
     const handleChatSelect = (chat: ChatItem) => {
         setSelectedChatId(chat.id);
         setSelectedChatName(chat.name);
+        setSelectedChatAvatar(chat.avatar);
     };
 
     const handleBack = () => {
         setSelectedChatId(null);
         setSelectedChatName("");
+        setSelectedChatAvatar(undefined);
     };
 
     const fetchChats = () => {
@@ -37,7 +41,8 @@ export function ChatListScreen({ onOpenSettings }: { onOpenSettings: () => void 
                         id: c.jid,
                         name: c.full_name || c.push_name || c.short || c.jid,
                         subtitle: c.latest_message || "",
-                        type: isGroup ? 'group' : 'contact'
+                        type: isGroup ? 'group' : 'contact',
+                        avatar: c.avatar_url
                     };
                 });
                 setChats(items);
@@ -70,9 +75,9 @@ export function ChatListScreen({ onOpenSettings }: { onOpenSettings: () => void 
                 {/* Header */}
                 <div className="h-16 bg-light-secondary dark:bg-[#0d0d0d] flex items-center justify-between px-4 border-b border-gray-200 dark:border-[#1a1a1a]">
                     <div className="w-10 h-10 rounded-full bg-gray-300 dark:bg-gray-600 overflow-hidden">
-                        <svg className="w-full h-full text-gray-500 dark:text-gray-400" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                        </svg>
+                        <svg viewBox="0 0 48 48" className="w-full h-full text-white" fill="currentColor">
+                                <path d="M24 23q-1.857 0-3.178-1.322Q19.5 20.357 19.5 18.5t1.322-3.178T24 14t3.178 1.322Q28.5 16.643 28.5 18.5t-1.322 3.178T24 23m-6.75 10q-.928 0-1.59-.66-.66-.662-.66-1.59v-.9q0-.956.492-1.758A3.3 3.3 0 0 1 16.8 26.87a16.7 16.7 0 0 1 3.544-1.308q1.8-.435 3.656-.436 1.856 0 3.656.436T31.2 26.87q.816.422 1.308 1.223T33 29.85v.9q0 .928-.66 1.59-.662.66-1.59.66z" />
+                            </svg>
                     </div>
                     <div className="flex gap-4 text-gray-500 dark:text-gray-400">
                         <button title="New Chat">
@@ -107,10 +112,16 @@ export function ChatListScreen({ onOpenSettings }: { onOpenSettings: () => void 
                             className={`flex items-center p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-[#1a1a1a] ${selectedChatId === chat.id ? 'bg-gray-200 dark:bg-[#2a2a2a]' : ''}`}
                         >
                             <div className="w-12 h-12 rounded-full bg-gray-300 dark:bg-gray-600 mr-4 flex-shrink-0 overflow-hidden flex items-center justify-center">
-                                {chat.type === 'group' ? (
-                                    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" className="text-white"><path d="M12.001 10.5c2.486 0 4.5-2.015 4.5-4.5s-2.014-4.5-4.5-4.5-4.5 2.015-4.5 4.5 2.014 4.5 4.5 4.5zm5.5 1.5h-1.922c-1.074.65-2.325 1-3.578 1-1.253 0-2.504-.35-3.578-1H6.501c-2.481 0-4.5 2.018-4.5 4.5v.5h19v-.5c0-2.482-2.019-4.5-4.5-4.5z"></path></svg>
+                                {chat.avatar ? (
+                                    <img src={chat.avatar} alt={chat.name} className="w-full h-full object-cover" />
                                 ) : (
-                                    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" className="text-white"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"></path></svg>
+                                    chat.type === 'group' ? (
+                                        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" className="text-white"><path d="M12.001 10.5c2.486 0 4.5-2.015 4.5-4.5s-2.014-4.5-4.5-4.5-4.5 2.015-4.5 4.5 2.014 4.5 4.5 4.5zm5.5 1.5h-1.922c-1.074.65-2.325 1-3.578 1-1.253 0-2.504-.35-3.578-1H6.501c-2.481 0-4.5 2.018-4.5 4.5v.5h19v-.5c0-2.482-2.019-4.5-4.5-4.5z"></path></svg>
+                                    ) : (
+                                        <svg viewBox="0 0 48 48" className="w-full h-full text-white" fill="currentColor">
+                                            <path d="M24 23q-1.857 0-3.178-1.322Q19.5 20.357 19.5 18.5t1.322-3.178T24 14t3.178 1.322Q28.5 16.643 28.5 18.5t-1.322 3.178T24 23m-6.75 10q-.928 0-1.59-.66-.66-.662-.66-1.59v-.9q0-.956.492-1.758A3.3 3.3 0 0 1 16.8 26.87a16.7 16.7 0 0 1 3.544-1.308q1.8-.435 3.656-.436 1.856 0 3.656.436T31.2 26.87q.816.422 1.308 1.223T33 29.85v.9q0 .928-.66 1.59-.662.66-1.59.66z" />
+                                        </svg>
+                                    )
                                 )}
                             </div>
                             <div className="flex-1 border-b border-gray-100 dark:border-gray-800 pb-3 min-w-0">
@@ -128,7 +139,12 @@ export function ChatListScreen({ onOpenSettings }: { onOpenSettings: () => void 
             {/* Right Side - Chat Detail */}
             <div className={`${selectedChatId ? 'flex' : 'hidden md:flex'} flex-1 flex-col h-full bg-[#efeae2] dark:bg-[#0d0d0d] relative`}>
                 {selectedChatId ? (
-                    <ChatDetail chatId={selectedChatId} chatName={selectedChatName} onBack={handleBack} />
+                    <ChatDetail 
+                        chatId={selectedChatId} 
+                        chatName={selectedChatName} 
+                        chatAvatar={selectedChatAvatar}
+                        onBack={handleBack} 
+                    />
                 ) : (
                     <div className="flex-1 flex flex-col items-center justify-center z-10 text-center px-10 border-b-[6px] border-[#43d187]">
                         <div className="mb-8">

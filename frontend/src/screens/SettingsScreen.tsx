@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
+import { GetProfile } from "../../wailsjs/go/api/Api";
+import { api } from "../../wailsjs/go/models";
 
 type SettingsCategory = "account" | "privacy" | "chats" | "notifications" | "shortcuts" | "help" | "logout";
 
@@ -13,6 +15,11 @@ interface SettingsItem {
 export function SettingsScreen({ onBack }: { onBack: () => void }) {
     const [selectedCategory, setSelectedCategory] = useState<SettingsCategory | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
+    const [profile, setProfile] = useState<api.Contact | null>(null);
+
+    useEffect(() => {
+        GetProfile().then(setProfile);
+    }, []);
 
     const settingsItems: SettingsItem[] = [
         {
@@ -120,12 +127,18 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
 
                 {/* User Profile */}
                 <div className="px-4 py-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary cursor-pointer flex items-center">
-                    <div className="w-12 h-12 rounded-full overflow-hidden mr-4">
-                        <img src="https://github.com/gunit.png" alt="Profile" className="w-full h-full object-cover" />
+                    <div className="w-12 h-12 rounded-full overflow-hidden mr-4 bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
+                        {profile?.avatar_url ? (
+                            <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                        ) : (
+                            <svg viewBox="0 0 48 48" className="w-full h-full text-white" fill="currentColor">
+                                <path d="M24 23q-1.857 0-3.178-1.322Q19.5 20.357 19.5 18.5t1.322-3.178T24 14t3.178 1.322Q28.5 16.643 28.5 18.5t-1.322 3.178T24 23m-6.75 10q-.928 0-1.59-.66-.66-.662-.66-1.59v-.9q0-.956.492-1.758A3.3 3.3 0 0 1 16.8 26.87a16.7 16.7 0 0 1 3.544-1.308q1.8-.435 3.656-.436 1.856 0 3.656.436T31.2 26.87q.816.422 1.308 1.223T33 29.85v.9q0 .928-.66 1.59-.662.66-1.59.66z" />
+                            </svg>
+                        )}
                     </div>
                     <div>
-                        <h3 className="text-light-text dark:text-dark-text font-medium">Gunit Kumar</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Available</p>
+                        <h3 className="text-light-text dark:text-dark-text font-medium">{profile?.push_name}</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{profile?.jid}</p>
                     </div>
                 </div>
 

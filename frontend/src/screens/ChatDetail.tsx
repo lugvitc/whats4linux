@@ -6,10 +6,11 @@ import { EventsOn } from "../../wailsjs/runtime/runtime";
 interface ChatDetailProps {
     chatId: string;
     chatName: string;
+    chatAvatar?: string;
     onBack?: () => void;
 }
 
-export function ChatDetail({ chatId, chatName, onBack }: ChatDetailProps) {
+export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailProps) {
     const [messages, setMessages] = useState<mstore.Message[]>([]);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -54,13 +55,16 @@ export function ChatDetail({ chatId, chatName, onBack }: ChatDetailProps) {
                     </button>
                 )}
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-white font-bold">
-                        {chatName.substring(0, 1).toUpperCase()}
+                    <div className="w-10 h-10 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-white font-bold overflow-hidden">
+                        {chatAvatar ? (
+                            <img src={chatAvatar} alt={chatName} className="w-full h-full object-cover" />
+                        ) : (
+                            chatName.substring(0, 1).toUpperCase()
+                        )}
                     </div>
                     <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">{chatName}</h2>
                 </div>
             </div>
-
             {/* Messages Area */}
             <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-repeat" style={{ backgroundImage: "url('/assets/images/bg-chat-tile-dark.png')" }}>
                 {messages.map((msg, idx) => (
@@ -101,7 +105,7 @@ export function ChatDetail({ chatId, chatName, onBack }: ChatDetailProps) {
 
 function MessageItem({ message }: { message: mstore.Message }) {
     const isMe = message.Info.IsFromMe;
-    
+    const senderName = message.Info.PushName || "Unknown";
     // Determine content
     let content = "";
 
@@ -154,6 +158,11 @@ function MessageItem({ message }: { message: mstore.Message }) {
                 ? 'bg-[#d9fdd3] dark:bg-[#005c4b] text-gray-900 dark:text-gray-100 rounded-tr-none' 
                 : 'bg-white dark:bg-[#202c33] text-gray-900 dark:text-gray-100 rounded-tl-none'
             }`}>
+                {!isMe && (
+                    <div className="text-[11px] font-semibold text-[#53bdeb] dark:text-[#53bdeb] mb-0.5">
+                        {senderName}
+                    </div>
+                )}
                 <div className="text-sm whitespace-pre-wrap break-words">
                     {content}
                 </div>
