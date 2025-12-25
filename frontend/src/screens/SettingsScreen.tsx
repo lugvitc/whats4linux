@@ -18,7 +18,7 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
     const [profile, setProfile] = useState<api.Contact | null>(null);
 
     useEffect(() => {
-        GetProfile().then(setProfile);
+        GetProfile("").then(setProfile);
     }, []);
 
     const settingsItems: SettingsItem[] = [

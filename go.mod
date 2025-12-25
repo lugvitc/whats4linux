@@ -4,10 +4,12 @@ go 1.24.0
 
 require (
 	github.com/gen2brain/beeep v0.11.2
+	github.com/joho/godotenv v1.5.1
 	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/nyaruka/phonenumbers v1.6.7
 	github.com/wailsapp/wails/v2 v2.11.0
 	go.mau.fi/whatsmeow v0.0.0-20251217143725-11cf47c62d32
+	google.golang.org/protobuf v1.36.11
 )
 
 require (
@@ -55,7 +57,6 @@ require (
 	golang.org/x/net v0.48.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
 	golang.org/x/text v0.32.0 // indirect
-	google.golang.org/protobuf v1.36.11 // indirect
 )
 
 // replace github.com/wailsapp/wails/v2 v2.11.0 => /home/celestix/go/pkg/mod

@@ -4,6 +4,7 @@ import (
 	"embed"
 
 	apiPkg "github.com/lugvitc/whats4linux/api"
+	"github.com/lugvitc/whats4linux/internal/misc"
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
@@ -18,7 +19,7 @@ func main() {
 
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:  "whats4linux",
+		Title:  misc.APP_NAME,
 		Width:  1024,
 		Height: 768,
 		AssetServer: &assetserver.Options{

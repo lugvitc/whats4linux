@@ -10,6 +10,9 @@ import (
 
 	"github.com/gen2brain/beeep"
 	"github.com/lugvitc/whats4linux/internal/mstore"
+	"github.com/lugvitc/whats4linux/internal/misc"
+	"github.com/lugvitc/whats4linux/internal/settings"
+	"github.com/lugvitc/whats4linux/internal/store"
 	"github.com/lugvitc/whats4linux/internal/wa"
 	"github.com/nyaruka/phonenumbers"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -45,7 +48,7 @@ type Api struct {
 	ctx          context.Context
 	cw           *wa.ContainerWrapper
 	waClient     *whatsmeow.Client
-	messageStore *mstore.MessageStore
+	messageStore *store.MessageStore
 }
 
 // NewApi creates a new Api application struct
@@ -57,14 +60,17 @@ func New() *Api {
 // so we can call the runtime methods
 func (a *Api) Startup(ctx context.Context) {
 	a.ctx = ctx
-	dbLog := waLog.Stdout("Database", "ERROR", true)
+	dbLog := waLog.Stdout("Database", settings.GetLogLevel(), true)
 	var err error
-	a.cw, err = wa.NewContainerWrapper(ctx, "sqlite3", "file:wa.db?_foreign_keys=on", dbLog)
+	a.cw, err = wa.NewContainerWrapper(ctx, "sqlite3", misc.GetSQLiteAddress("session.wa"), dbLog)
 	if err != nil {
 		panic(err)
 	}
 	a.waClient = wa.NewClient(ctx, a.cw.GetContainer())
-	a.messageStore = mstore.NewMessageStore()
+	a.messageStore, err = store.NewMessageStore()
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (a *Api) Login() error {
@@ -146,7 +152,7 @@ func (a *Api) FetchContacts() ([]Contact, error) {
 	return result, nil
 }
 
-func (a *Api) FetchMessages(jid string) ([]mstore.Message, error) {
+func (a *Api) FetchMessages(jid string) ([]store.Message, error) {
 	parsedJID, err := types.ParseJID(jid)
 	if err != nil {
 		return nil, err

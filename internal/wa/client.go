@@ -3,6 +3,7 @@ package wa
 import (
 	"context"
 
+	"github.com/lugvitc/whats4linux/internal/settings"
 	_ "github.com/mattn/go-sqlite3"
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/store/sqlstore"
@@ -14,6 +15,6 @@ func NewClient(ctx context.Context, container *sqlstore.Container) *whatsmeow.Cl
 	if err != nil {
 		panic(err)
 	}
-	clientLog := waLog.Stdout("Client", "ERROR", true)
+	clientLog := waLog.Stdout("Client", settings.GetLogLevel(), true)
 	return whatsmeow.NewClient(deviceStore, clientLog)
 }
