@@ -124,6 +124,27 @@ func (a *Api) FetchGroups() ([]wa.Group, error) {
 	return result, nil
 }
 
+func (a *Api) GetContact(jid types.JID) (*Contact, error) {
+	contact, err := a.waClient.Store.Contacts.GetContact(a.ctx, jid)
+	if err != nil {
+		return nil, err
+	}
+	rawNum := "+" + jid.User
+	// Parse phone number to use as International Format
+	num, err := phonenumbers.Parse(rawNum, "")
+	if err != nil && !phonenumbers.IsValidNumber(num) {
+		return nil, fmt.Errorf("invalid phone number")
+	}
+
+	return &Contact{
+		JID:        phonenumbers.Format(num, phonenumbers.INTERNATIONAL),
+		FullName:   contact.FullName,
+		Short:      contact.FirstName,
+		PushName:   contact.PushName,
+		IsBusiness: contact.BusinessName != "",
+	}, nil
+}
+
 func (a *Api) FetchContacts() ([]Contact, error) {
 	rawContacts, err := a.waClient.Store.Contacts.GetAllContacts(a.ctx)
 	if err != nil {

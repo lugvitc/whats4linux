@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
-import { FetchMessages, DownloadMedia, SendMessage, GetProfile } from "../../wailsjs/go/api/Api";
-import { store } from "../../wailsjs/go/models";
+import { FetchMessages, DownloadMedia, SendMessage, GetProfile, FetchContacts, GetContact } from "../../wailsjs/go/api/Api";
+import { store, types } from "../../wailsjs/go/models";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 
 // WhatsApp-style markdown parser
@@ -515,14 +515,14 @@ function MessageItem({ message, chatId, sentMediaCache }: { message: store.Messa
     const isSticker = !!message.Content?.stickerMessage;
     const isImageOrVideo = !!(message.Content?.imageMessage || message.Content?.videoMessage);
     const timeStr = new Date(message.Info.Timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    
-    const senderName = (
-        (message.Info as any)?.Participant ||
-        (message.Info as any)?.Sender ||
-        (message.Info as any)?.RemoteJid ||
-        (message.Content as any)?.senderName ||
-        ""
-    ).toString();
+    var senderName = message.Info.PushName;
+    if (!message.Info.Sender.toString().endsWith("lid")) {
+        GetContact(message.Info.Sender).then((contact: any) => {
+            senderName = contact.full_name || senderName || contact.jid;
+        }).catch(() => {
+            senderName = senderName || message.Info.Sender.toString();
+        });
+    }
 
     // Check for quoted message
     const contextInfo = message.Content?.extendedTextMessage?.contextInfo ||
