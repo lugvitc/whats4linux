@@ -2,7 +2,7 @@ name: w4l build
 
 on:
   workflow_dispatch:
-  
+
 jobs:
   build:
     strategy:
@@ -34,4 +34,6 @@ jobs:
         with:
           build-name: ${{ matrix.name }}
           build-platform: ${{ matrix.platform }}
-          build-obfuscate: true
+          build: true
+          package: true
+          sign: false
