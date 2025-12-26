@@ -1,0 +1,55 @@
+name: w4l build
+
+on:
+  workflow_dispatch:
+  
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: wailsTest
+            platform: linux/amd64
+            os: ubuntu-latest
+
+          - name: wailsTest
+            platform: windows/amd64
+            os: windows-latest
+
+          - name: wailsTest
+            platform: darwin/universal
+            os: macos-latest
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install frontend dependencies
+        run: |
+          if [ -f package-lock.json ] || [ -f package.json ]; then
+            npm install
+          fi
+        shell: bash
+
+      - name: Build Wails app
+        uses: dAppServer/wails-build-action@v3
+        with:
+          build-name: ${{ matrix.name }}
+          build-platform: ${{ matrix.platform }}
+          build-obfuscate: true
