@@ -21,11 +21,12 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
           
       - name: Install Linux dependencies
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
             libgtk-3-dev \
-            libwebkit2gtk-4.0-dev \
+            libwebkit2gtk-4.1-dev \
             pkg-config
           
       - name: Setup Go
