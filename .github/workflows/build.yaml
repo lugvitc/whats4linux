@@ -1,4 +1,4 @@
-name: w4l build
+name: Wails Build
 
 on:
   workflow_dispatch:
@@ -6,15 +6,36 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: true
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
-
-      - uses: dAppServer/wails-build-action@v3
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          build-name: whats4linux
-          build-platform: linux/amd64
+          node-version: "20"
+          cache: "npm"
+          
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          
+      - name: Install Wails
+        run: |
+          go install github.com/wailsapp/wails/v2/cmd/wails@latest
+          echo "$HOME/go/bin" >> $GITHUB_PATH
+
+      - name: Build Wails app
+        run: |
+          wails doctor
+          wails build -platform linux/amd64
+          
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wails-linux-amd64
+          path: build/bin/*
