@@ -5,35 +5,14 @@ on:
 
 jobs:
   build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: wailsTest
-            platform: linux/amd64
-            os: ubuntu-latest
-
-          - name: wailsTest
-            platform: windows/amd64
-            os: windows-latest
-
-          - name: wailsTest
-            platform: darwin/universal
-            os: macos-latest
-
-    runs-on: ${{ matrix.os }}
-
+    runs-on: ubuntu:latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Build Wails app
-        uses: dAppServer/wails-build-action@v3
+      - uses: dAppServer/wails-build-action@v3
         with:
-          build-name: ${{ matrix.name }}
-          build-platform: ${{ matrix.platform }}
-          build: true
-          package: true
-          sign: false
+          build-name: whats4linux
+          build-platform: linux/amd64
