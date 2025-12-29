@@ -7,6 +7,7 @@ import (
 )
 
 const APP_NAME = "whats4linux"
+const APP_LOCK_FILE = "/tmp/whats4linux.lock"
 
 var ConfigDir = defaultConfigDir()
 
