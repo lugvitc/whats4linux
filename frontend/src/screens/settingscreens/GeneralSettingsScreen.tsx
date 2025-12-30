@@ -1,5 +1,5 @@
-import SettingButtonDesc from "../../components/SettingButtonDesc"
-import DropDown from "../../components/DropDown"
+import SettingButtonDesc from "../../components/settings/SettingButtonDesc"
+import DropDown from "../../components/settings/DropDown"
 const GeneralSettingsScreen = () => {
   return (
     <div className="flex flex-col gap-4">

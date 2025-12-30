@@ -60,7 +60,7 @@ const settingsItems: SettingsItem[] = [
     label: "Account",
     description: "Security notifications, account info",
     icon: <AccountIcon />,
-    screen: <AccountSettingsScreen />,
+    screen: null,
   },
   {
     id: "privacy",
@@ -116,10 +116,15 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
   const [selectedCategory, setSelectedCategory] = useState<SettingsCategory | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [profile, setProfile] = useState<api.Contact | null>(null)
+  const [nestedScreen, setNestedScreen] = useState<ReactNode | null>(null)
 
   useEffect(() => {
     GetProfile("").then(setProfile)
   }, [])
+
+  const handleNavigate = (anchor: ReactNode) => {
+    setNestedScreen(anchor)
+  }
 
   const renderContent = () => {
     if (!selectedCategory) {
@@ -131,6 +136,21 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
       )
     }
 
+    if (nestedScreen) {
+      return (
+        <div className="w-full max-w-2xl px-8 py-6 overflow-y-auto h-full">
+          <button
+            onClick={() => setNestedScreen(null)}
+            className="flex items-center gap-2 mb-4 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+          >
+            <BackIcon />
+            <span>Back</span>
+          </button>
+          {nestedScreen}
+        </div>
+      )
+    }
+
     const currentItem = settingsItems.find(i => i.id === selectedCategory)
 
     return (
@@ -138,7 +158,11 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
         <h2 className="text-2xl font-light mb-6 text-light-text dark:text-dark-text">
           {currentItem?.label}
         </h2>
-        {currentItem?.screen}
+        {selectedCategory === "account" ? (
+          <AccountSettingsScreen onNavigate={handleNavigate} />
+        ) : (
+          currentItem?.screen
+        )}
       </div>
     )
   }
