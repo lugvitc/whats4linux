@@ -29,7 +29,7 @@ const SecurityNotificationsScreen = () => {
       <SettingButtonDesc
         title="Show security notifications on this computer"
         description="Get notified when your security code changes for a contact's phone. If you have multiple devices, this setting must be enabled on each device where you want to get notifications. Leam more"
-        settingtoggle={() => {}}
+        onToggle={() => {}}
       />
     </div>
   )

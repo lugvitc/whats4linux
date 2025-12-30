@@ -6,12 +6,12 @@ const DropDown = ({
   title,
   elements,
   icon,
-  settingtoggle,
+  onToggle,
 }: {
   title: string
   elements: string[]
   icon?: React.ReactNode
-  settingtoggle: (element: string) => void
+  onToggle: (element: string) => void
 }) => {
   const [onOpen, setOnOpen] = useState(false)
   const [selectedElement, setSelectedElement] = useState<string | null>(null)
@@ -25,7 +25,7 @@ const DropDown = ({
 
   const handleSelect = (element: string) => {
     setSelectedElement(element)
-    settingtoggle(element)
+    onToggle(element)
     setOnOpen(false)
   }
 
