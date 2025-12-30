@@ -1,5 +1,5 @@
 import React from "react"
-import SettingButtonDesc from "../../components/SettingButtonDesc"
+import SettingButtonDesc from "../../components/settings/SettingButtonDesc"
 
 const NotificationsSettingsScreen = () => {
   return (
