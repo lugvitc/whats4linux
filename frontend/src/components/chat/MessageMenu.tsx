@@ -108,7 +108,7 @@ export function MessageMenu({
           ref={dropdownRef}
           className={`absolute ${isFromMe ? "right-0" : "left-0"} ${openUpward ? "bottom-full mb-1" : "mt-1"} w-56 bg-white dark:bg-[#233138] rounded-xl shadow-lg z-50 py-1 border border-gray-200 dark:border-gray-700`}
           style={{
-            animation: isClosing ? 'menuFadeOut 0.15s ease-in' : 'menuFadeIn 0.15s ease-out'
+            animation: isClosing ? "menuFadeOut 0.15s ease-in" : "menuFadeIn 0.15s ease-out",
           }}
         >
           <button

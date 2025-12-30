@@ -89,11 +89,9 @@ export function MessageItem({ message, chatId, sentMediaCache }: MessageItemProp
 
   const renderContent = () => {
     if (!content) return <span className="italic opacity-50">Empty Message</span>
-
     else if (content.conversation) return parseWhatsAppMarkdown(content.conversation)
     else if (content.extendedTextMessage?.text)
       return parseWhatsAppMarkdown(content.extendedTextMessage.text)
-
     else if (content.imageMessage)
       return (
         <div className="flex flex-col">
@@ -108,7 +106,6 @@ export function MessageItem({ message, chatId, sentMediaCache }: MessageItemProp
           )}
         </div>
       )
-
     else if (content.videoMessage)
       return (
         <div className="flex flex-col">
@@ -123,7 +120,6 @@ export function MessageItem({ message, chatId, sentMediaCache }: MessageItemProp
           )}
         </div>
       )
-
     else if (content.audioMessage)
       return (
         <MediaContent
@@ -133,10 +129,8 @@ export function MessageItem({ message, chatId, sentMediaCache }: MessageItemProp
           sentMediaCache={sentMediaCache}
         />
       )
-
     else if (content.stickerMessage)
       return <MediaContent message={message} type="sticker" chatId={chatId} />
-
     else if (content.documentMessage) {
       const doc = content.documentMessage
       const fileName = doc.fileName || "Document"
@@ -176,8 +170,7 @@ export function MessageItem({ message, chatId, sentMediaCache }: MessageItemProp
           {doc.caption && <div className="mt-1">{parseWhatsAppMarkdown(doc.caption)}</div>}
         </div>
       )
-    }
-    else return <span className="italic opacity-50 text-xs">Unsupported Message Type</span>
+    } else return <span className="italic opacity-50 text-xs">Unsupported Message Type</span>
   }
 
   return (
