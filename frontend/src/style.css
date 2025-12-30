@@ -12,6 +12,11 @@
   --color-light-secondary: #f0f2f5;
   --color-green: #21c063;
   --color-hover-icons: #2d2e2e;
+
+  /* Keyboard Shortcuts */
+  --color-shortcut-bg: #323232;
+  --color-shortcut-border: #585a5c;
+  --color-shortcut-text: #ffffff;
 }
 
 @variant dark (&:where(.dark, .dark *));

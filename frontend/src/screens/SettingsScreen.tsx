@@ -100,6 +100,7 @@ const settingsItems: SettingsItem[] = [
   {
     id: "advanced",
     label: "Advanced",
+    description: "CSS & JS editor, Developer options",
     icon: <DotsIcon />,
     screen: <AdvancedScreen />,
   },
@@ -154,7 +155,7 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
     const currentItem = settingsItems.find(i => i.id === selectedCategory)
 
     return (
-      <div className="w-full max-w-2xl px-8 py-6 overflow-y-auto h-full">
+      <div className="w-full px-8 py-6 overflow-y-auto h-full">
         <h2 className="text-2xl font-light mb-6 text-light-text dark:text-dark-text">
           {currentItem?.label}
         </h2>
