@@ -2,6 +2,7 @@ import gsap from "gsap"
 import { useGSAP } from "@gsap/react"
 import { useState, useRef, useEffect } from "react"
 import clsx from "clsx"
+import { getEase } from "../../store/useEaseStore"
 
 const DropDown = ({
   title,
@@ -21,6 +22,16 @@ const DropDown = ({
   const dropdownRef = useRef<HTMLDivElement>(null)
   const arrowRef = useRef<HTMLSpanElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  const easeOpenRef = useRef(getEase("DropDown", "open"))
+  const easeCloseRef = useRef(getEase("DropDown", "close"))
+  const easeRotateRef = useRef(getEase("DropDown", "rotate"))
+
+  useEffect(() => {
+    easeOpenRef.current = getEase("DropDown", "open")
+    easeCloseRef.current = getEase("DropDown", "close")
+    easeRotateRef.current = getEase("DropDown", "rotate")
+  })
 
   const toggleOpen = () => {
     setOnOpen(!onOpen)
@@ -49,32 +60,36 @@ const DropDown = ({
   }, [onOpen])
 
   useGSAP(() => {
-    if (dropdownRef.current && arrowRef.current) {
-      if (onOpen) {
-        gsap.to(dropdownRef.current, {
-          height: "auto",
-          opacity: 1,
-          duration: 0.3,
-          ease: "power2.out",
-        })
-        gsap.to(arrowRef.current, {
-          rotation: 180,
-          duration: 0.3,
-          ease: "power2.out",
-        })
-      } else {
-        gsap.to(dropdownRef.current, {
-          height: 0,
-          opacity: 0,
-          duration: 0.3,
-          ease: "power2.in",
-        })
-        gsap.to(arrowRef.current, {
-          rotation: 0,
-          duration: 0.3,
-          ease: "power2.in",
-        })
-      }
+    if (!dropdownRef.current || !arrowRef.current) return
+
+    if (onOpen) {
+      gsap.set(dropdownRef.current, { height: "auto" })
+      const h = dropdownRef.current.offsetHeight
+
+      gsap.fromTo(
+        dropdownRef.current,
+        { height: 0, opacity: 0 },
+        { height: h, opacity: 1, duration: 0.3, ease: easeOpenRef.current },
+      )
+
+      gsap.to(arrowRef.current, {
+        rotation: 180,
+        duration: 0.3,
+        ease: easeRotateRef.current,
+      })
+    } else {
+      gsap.to(dropdownRef.current, {
+        height: 0,
+        opacity: 0,
+        duration: 0.3,
+        ease: easeCloseRef.current,
+      })
+
+      gsap.to(arrowRef.current, {
+        rotation: 0,
+        duration: 0.3,
+        ease: easeRotateRef.current,
+      })
     }
   }, [onOpen])
 

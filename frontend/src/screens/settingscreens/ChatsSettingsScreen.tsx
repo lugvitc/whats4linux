@@ -1,4 +1,6 @@
 import ComponentColorSelector from "../../components/settings/ComponentColorSelector"
+import EaseVisualizer from "../../components/settings/ComponentEaseSelector"
+
 import SettingButtonDesc from "../../components/settings/SettingButtonDesc"
 import { useAppSettingsStore } from "../../store/useAppSettingsStore"
 
@@ -26,6 +28,7 @@ const ChatsSettingsScreen = () => {
         isEnabled={enterIsSend}
       />
       <ComponentColorSelector />
+      <EaseVisualizer />
     </div>
   )
 }

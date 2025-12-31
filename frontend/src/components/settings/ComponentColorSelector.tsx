@@ -12,7 +12,7 @@ type ThemeLabel<G extends ThemeGroup> = keyof (typeof THEME)[G]
 const isHex = (v: string) => /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(v)
 
 const ComponentColorSelector = () => {
-  const { themeColors, updateThemeColor } = useAppSettingsStore()
+  const { themeColors, updateThemeColor, theme } = useAppSettingsStore()
   const [selectedComponent, setSelectedComponent] = useState<ThemeGroup | null>(null)
   const [draft, setDraft] = useState<typeof themeColors | null>(null)
 
@@ -75,7 +75,7 @@ const ComponentColorSelector = () => {
       <div className="flex flex-col justify-between w-1/3">
         <div>
           <h3 className="text-sm font-bold opacity-50 mb-4 uppercase tracking-wider">
-            Customize UI
+            Customize Colors
           </h3>
           <DropDown
             title=""
@@ -118,34 +118,41 @@ const ComponentColorSelector = () => {
                   Object.keys(THEME[selectedComponent]) as Array<
                     keyof (typeof THEME)[typeof selectedComponent]
                   >
-                ).map(label => {
-                  const value = (draft as any)[selectedComponent][label]
-                  return (
-                    <div key={label} className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold uppercase opacity-50">{label}</label>
-                      <div className="flex items-center gap-2">
-                        <div className="relative flex-1">
+                )
+                  .filter(label =>
+                    theme === "dark"
+                      ? String(label).includes("dark")
+                      : !String(label).includes("dark"),
+                  )
+                  .sort()
+                  .map(label => {
+                    const value = (draft as any)[selectedComponent][label]
+                    return (
+                      <div key={label} className="flex flex-col gap-1">
+                        <label className="text-md font-bold uppercase opacity-50">{label}</label>
+                        <div className="flex items-center gap-2">
+                          <div className="relative flex-1">
+                            <input
+                              type="text"
+                              value={value}
+                              onChange={e =>
+                                handleDraftChange(selectedComponent, label as any, e.target.value)
+                              }
+                              className="w-full border dark:border-zinc-700 rounded bg-transparent px-2 py-1.5 text-sm font-mono focus:outline-none"
+                            />
+                          </div>
                           <input
-                            type="text"
-                            value={value}
+                            type="color"
+                            value={isHex(value) ? value.slice(0, 7) : "#000000"}
                             onChange={e =>
                               handleDraftChange(selectedComponent, label as any, e.target.value)
                             }
-                            className="w-full border dark:border-zinc-700 rounded bg-transparent px-2 py-1.5 text-xs font-mono"
+                            className="w-10 h-8 rounded border-none cursor-pointer bg-transparent"
                           />
                         </div>
-                        <input
-                          type="color"
-                          value={isHex(value) ? value.slice(0, 7) : "#000000"}
-                          onChange={e =>
-                            handleDraftChange(selectedComponent, label as any, e.target.value)
-                          }
-                          className="w-10 h-8 rounded border-none cursor-pointer bg-transparent"
-                        />
                       </div>
-                    </div>
-                  )
-                })}
+                    )
+                  })}
             </div>
           </div>
         )}
@@ -162,7 +169,12 @@ const ComponentColorSelector = () => {
           {selectedComponent === "Keyboard Shortcut" && (
             <SingleShortcut name="Command" shortcut={["Ctrl", "P"]} />
           )}
-          {selectedComponent === "Button" && <ToggleButton isEnabled={true} onToggle={() => {}} />}
+          {selectedComponent === "Button" && (
+            <>
+              <ToggleButton isEnabled={true} onToggle={() => {}} />
+              <ToggleButton isEnabled={false} onToggle={() => {}} />
+            </>
+          )}
           {selectedComponent === "DropDown" && (
             <DropDown elements={["Option 1", "Option 2"]} title="Preview" onToggle={() => {}} />
           )}

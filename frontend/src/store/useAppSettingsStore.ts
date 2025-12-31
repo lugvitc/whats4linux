@@ -1,6 +1,7 @@
 import { create } from "zustand"
 import { GetSettings, SaveSettings } from "../../wailsjs/go/api/Api"
-import { THEME, applyThemeColors } from "../theme.config"
+import { DEFAULT_EASES, THEME, applyThemeColors } from "../theme.config"
+import { useEaseStore } from "./useEaseStore"
 
 interface AppSettingsStore extends AppSettings {
   loaded: boolean
@@ -15,6 +16,7 @@ export interface AppSettings {
   // Theme
   theme: "light" | "dark"
   themeColors: typeof THEME
+  eases: typeof DEFAULT_EASES
 
   // Privacy Settings
   readReceipts: boolean
@@ -46,6 +48,7 @@ export interface AppSettings {
 const defaultSettings: AppSettings = {
   theme: "light",
   themeColors: THEME,
+  eases: DEFAULT_EASES,
   readReceipts: true,
   blockUnknown: false,
   disableLinkPreviews: false,
@@ -87,8 +90,8 @@ export const useAppSettingsStore = create<AppSettingsStore>((set, get) => ({
         ...(saved ?? {}),
       }
 
-      // ⭐ apply to CSS
       applyThemeColors(merged.themeColors)
+      useEaseStore.setState({ eases: merged.eases })
 
       set({
         ...merged,
@@ -99,6 +102,7 @@ export const useAppSettingsStore = create<AppSettingsStore>((set, get) => ({
 
       // fallback to defaults
       applyThemeColors(defaultSettings.themeColors)
+      useEaseStore.setState({ eases: defaultSettings.eases })
 
       set({ loaded: true })
     }
