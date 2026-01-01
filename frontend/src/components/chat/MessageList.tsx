@@ -116,6 +116,20 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
     [isLoading, hasMore],
   )
 
+  const renderItem = useCallback(
+    (_: number, msg: store.Message) => (
+      <div className="px-4 py-1">
+        <MemoizedMessageItem
+          message={msg}
+          chatId={chatId}
+          sentMediaCache={sentMediaCache}
+          onReply={onReply}
+        />
+      </div>
+    ),
+    [chatId, onReply],
+  )
+
   return (
     <Virtuoso
       ref={virtuosoRef}
@@ -130,16 +144,7 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
       increaseViewportBy={{ top: 200, bottom: 0 }}
       className="flex-1 overflow-y-auto bg-repeat"
       style={{ backgroundImage: "url('/assets/images/bg-chat-tile-dark.png')" }}
-      itemContent={(_, msg) => (
-        <div className="px-4 py-1">
-          <MemoizedMessageItem
-            message={msg}
-            chatId={chatId}
-            sentMediaCache={sentMediaCache}
-            onReply={onReply}
-          />
-        </div>
-      )}
+      itemContent={renderItem}
       components={{
         Header: LoadingHeader,
         Footer: () => <div className="h-2" />,
