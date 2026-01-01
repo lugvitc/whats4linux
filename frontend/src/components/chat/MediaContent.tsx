@@ -34,7 +34,7 @@ export function MediaContent({ message, type, chatId, sentMediaCache }: MediaCon
   // Cleanup blob URLs on unmount to prevent memory leaks
   useEffect(() => {
     return () => {
-      if (mediaSrc?.startsWith('blob:')) {
+      if (mediaSrc?.startsWith("blob:")) {
         URL.revokeObjectURL(mediaSrc)
       }
     }

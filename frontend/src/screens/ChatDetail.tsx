@@ -15,7 +15,8 @@ interface ChatDetailProps {
 }
 
 export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailProps) {
-  const { messages, setMessages, updateMessage, prependMessages, setActiveChatId } = useMessageStore()
+  const { messages, setMessages, updateMessage, prependMessages, setActiveChatId } =
+    useMessageStore()
   const { setTypingIndicator, showEmojiPicker, setShowEmojiPicker } = useUIStore()
 
   const chatMessages = messages[chatId] || []
