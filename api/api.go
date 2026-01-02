@@ -781,7 +781,7 @@ func (a *Api) GetCachedImages(messageIDs []string) (map[string]string, error) {
 // GetCachedAvatar retrieves or downloads and caches an avatar for a JID
 func (a *Api) GetCachedAvatar(jid string) (string, error) {
 	log.Printf("[GetCachedAvatar] Starting for JID: %s", jid)
-	
+
 	// Try to get cached avatar data first
 	data, mime, err := a.imageCache.ReadAvatarByJID(jid)
 	if err == nil {
