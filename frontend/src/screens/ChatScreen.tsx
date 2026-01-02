@@ -141,7 +141,7 @@ const ChatListItem = ({ chat, isSelected, onSelect }: ChatListItemProps) => (
     <div className="flex-1 min-w-0">
       <div className="flex justify-between items-baseline mb-1">
         <h3 className="text-light-text dark:text-dark-text font-medium truncate">{chat.name}</h3>
-        <span className="text-xs text-gray-500 dark:text-gray-400">Yesterday</span>
+        <span className="text-xs text-gray-500 dark:text-gray-400">{((chat.timestamp) ? (new Date(chat.timestamp * 1000)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "yesterday")}</span>
       </div>
       <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{chat.subtitle}</p>
     </div>
@@ -226,6 +226,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
         name: c.full_name || c.push_name || c.short || c.jid || "Unknown",
         subtitle: c.latest_message || "",
         type: isGroup ? "group" : "contact",
+        timestamp: c.LatestTS,
         avatar: avatar,
       }
     })
@@ -281,7 +282,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
   }, [fetchChats])
 
   const filteredChats = chats.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()))
-
+  console.log(filteredChats)
   return (
     <div className="flex h-screen bg-light-secondary dark:bg-black overflow-hidden">
       {/* Chat List Sidebar */}

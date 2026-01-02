@@ -39,6 +39,7 @@ type Contact struct {
 
 type ChatElement struct {
 	LatestMessage string `json:"latest_message"`
+	LatestTS int64
 	Contact
 }
 
@@ -289,13 +290,14 @@ func (a *Api) GetChatList() ([]ChatElement, error) {
 		if avatarURL, err := a.GetCachedAvatar(cm.JID.String()); err == nil && avatarURL != "" {
 			fc.AvatarURL = avatarURL
 		} else {
-			log.Printf("FAILED: No avatar found for %s: %v", cm.JID.String(), err)
+			// log.Printf("FAILED: No avatar found for %s: %v", cm.JID.String(), err)
 		}
 
 		// todo: remove this later
 		fc.FullName = fmt.Sprintf("%s (%s)", fc.FullName, cm.JID.String())
 		ce[i] = ChatElement{
 			LatestMessage: cm.MessageText,
+			LatestTS: cm.MessageTime,
 			Contact:       fc,
 		}
 	}
