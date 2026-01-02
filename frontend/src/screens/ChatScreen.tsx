@@ -67,14 +67,10 @@ interface ChatAvatarProps {
 }
 
 const ChatAvatar = ({ chat }: ChatAvatarProps) => {
-  console.log(`[ChatAvatar] Rendering avatar for ${chat.id}: "${chat.avatar}" (type: ${chat.type})`)
-  
   if (chat.avatar) {
-    console.log(`[ChatAvatar] Displaying image avatar for ${chat.id}: ${chat.avatar}`)
     return <img src={chat.avatar} alt={chat.name} className="w-full h-full object-cover" />
   }
 
-  console.log(`[ChatAvatar] Using default icon for ${chat.id} (type: ${chat.type})`)
   return chat.type === "group" ? <GroupIcon /> : <UserAvatar />
 }
 
@@ -225,7 +221,6 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
     return chatElements.map(c => {
       const isGroup = c.jid?.endsWith("@g.us") || false
       const avatar = c.avatar_url || ""
-      console.log(`[ChatScreen] Processing ${c.jid}: avatar_url="${c.avatar_url}", final avatar="${avatar}"`)
       return {
         id: c.jid || "",
         name: c.full_name || c.push_name || c.short || c.jid || "Unknown",
