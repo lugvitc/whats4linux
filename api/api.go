@@ -568,7 +568,7 @@ func (a *Api) SendMessage(chatJID string, content MessageContent) (string, error
 	}
 
 	// Manually add to store and emit event so UI updates immediately
-	a.messageStore.ProcessMessageEvent(&events.Message{
+	msgEvent := &events.Message{
 		Info: types.MessageInfo{
 			ID:        resp.ID,
 			Timestamp: resp.Timestamp,
@@ -579,8 +579,17 @@ func (a *Api) SendMessage(chatJID string, content MessageContent) (string, error
 			},
 		},
 		Message: msgContent,
+	}
+	a.messageStore.ProcessMessageEvent(msgEvent)
+
+	msg := store.Message{
+		Info:    msgEvent.Info,
+		Content: msgEvent.Message,
+	}
+	runtime.EventsEmit(a.ctx, "wa:new_message", map[string]any{
+		"chatId":  parsedJID.String(),
+		"message": msg,
 	})
-	runtime.EventsEmit(a.ctx, "wa:new_message")
 
 	return resp.ID, nil
 }
