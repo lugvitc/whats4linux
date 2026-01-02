@@ -73,12 +73,9 @@ function App() {
     })
 
     const unsubDownload = EventsOn("download:complete", (fileName: string) => {
-      addNotification(`Downloaded: ${fileName}`)
+      const notificationId = addNotification(`Downloaded: ${fileName}`)
       setTimeout(() => {
-        const notification = notifications.find(n => n.message === `Downloaded: ${fileName}`)
-        if (notification) {
-          removeNotification(notification.id)
-        }
+        removeNotification(notificationId)
       }, 3000)
     })
 
@@ -87,7 +84,7 @@ function App() {
       unsubStatus()
       unsubDownload()
     }
-  }, [addNotification, removeNotification, notifications])
+  }, [addNotification, removeNotification])
 
   return (
     <div className="min-h-screen bg-light-secondary text-light-text dark:bg-black dark:text-white relative">

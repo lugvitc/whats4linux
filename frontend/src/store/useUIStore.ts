@@ -11,7 +11,7 @@ interface UIStore {
   setShowEmojiPicker: (show: boolean) => void
   setTypingIndicator: (chatId: string, isTyping: boolean) => void
   setOnlineStatus: (userId: string, isOnline: boolean) => void
-  addNotification: (message: string) => void
+  addNotification: (message: string) => number
   removeNotification: (id: number) => void
 }
 
@@ -36,13 +36,13 @@ export const useUIStore = create<UIStore>(set => ({
       onlineStatus: { ...state.onlineStatus, [userId]: isOnline },
     })),
 
-  addNotification: message =>
-    set(state => {
-      const id = Date.now()
-      return {
-        notifications: [...state.notifications, { id, message }],
-      }
-    }),
+  addNotification: message => {
+    const id = Date.now()
+    set(state => ({
+      notifications: [...state.notifications, { id, message }],
+    }))
+    return id
+  },
 
   removeNotification: id =>
     set(state => ({
