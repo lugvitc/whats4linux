@@ -79,10 +79,7 @@ func (ms *MessageStore) ProcessMessageEvent(msg *events.Message) {
 	}
 	ms.mCache.Set(msg.Info.ID, 1)
 	chat := msg.Info.Chat.User
-	ml, ok := ms.msgMap.Get(chat)
-	if !ok {
-		ml = []Message{}
-	}
+	ml, _ := ms.msgMap.Get(chat)
 
 	m := Message{
 		Info:    msg.Info,

@@ -62,13 +62,17 @@ const (
 
 	SelectChatList = `
 	SELECT chat, message_id, timestamp, msg_info, raw_message
-	FROM messages
-	WHERE (chat, timestamp) IN (
-		SELECT chat, MAX(timestamp)
+	FROM (
+		SELECT 
+			chat, message_id, timestamp, msg_info, raw_message,
+			ROW_NUMBER() OVER (
+				PARTITION BY chat
+				ORDER BY timestamp DESC, rowid DESC
+			) AS rn
 		FROM messages
-		GROUP BY chat
 	)
-	ORDER BY timestamp DESC
+	WHERE rn = 1
+	ORDER BY timestamp DESC;
 	`
 
 	SelectMessagesByChatBeforeTimestamp = `
