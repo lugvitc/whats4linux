@@ -5,7 +5,6 @@ import { DownloadImageToFile, GetContact } from "../../../wailsjs/go/api/Api"
 // import { parseWhatsAppMarkdown } from "../../utils/markdown"
 import { MediaContent } from "./MediaContent"
 import { QuotedMessage } from "./QuotedMessage"
-import { ImagePreview } from "./ImagePreview"
 import clsx from "clsx"
 import { MessageMenu } from "./MessageMenu"
 import { ClockPendingIcon, BlueTickIcon } from "../../assets/svgs/chat_icons"
@@ -48,13 +47,6 @@ export function MessageItem({
   const isSticker = !!content?.stickerMessage
   const isPending = (message as any).isPending || false
   const [senderName, setSenderName] = useState(message.Info.PushName || "Unknown")
-  const [showImagePreview, setShowImagePreview] = useState(false)
-  const [previewImageSrc, setPreviewImageSrc] = useState("")
-
-  const handleImageClick = (src: string) => {
-    setPreviewImageSrc(src)
-    setShowImagePreview(true)
-  }
 
   const handleImageDownload = async () => {
     try {
@@ -132,7 +124,6 @@ export function MessageItem({
             type="image"
             chatId={chatId}
             sentMediaCache={sentMediaCache}
-            onImageClick={handleImageClick}
             onDownload={handleImageDownload}
           />
           {content.imageMessage.caption && (
@@ -219,13 +210,6 @@ export function MessageItem({
 
   return (
     <>
-      {showImagePreview && (
-        <ImagePreview
-          src={previewImageSrc}
-          onClose={() => setShowImagePreview(false)}
-          messageId={message.Info.ID}
-        />
-      )}
       <div
         className={clsx("flex mb-2 group", isFromMe ? "justify-end" : "justify-start", {
           "ring-2 ring-yellow-400": highlightedMessageId === message.Info.ID,
