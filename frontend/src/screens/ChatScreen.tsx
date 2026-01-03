@@ -309,11 +309,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
 
         <div className="flex-1 overflow-y-auto">
           {filteredChats.length === 0 ? (
-            <EmptyState
-              hasChats={chats.length > 0}
-              isLoading={isFetching}
-              onRefresh={fetchChats}
-            />
+            <EmptyState hasChats={chats.length > 0} isLoading={isFetching} onRefresh={fetchChats} />
           ) : (
             filteredChats.map(chat => (
               <ChatListItem
