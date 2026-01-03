@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react"
+import { useEffect, useRef, useCallback, useState } from "react"
 import clsx from "clsx"
 import { GetChatList } from "../../wailsjs/go/api/Api"
 import { api } from "../../wailsjs/go/models"
@@ -210,6 +210,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
   } = useChatStore()
 
   const isFetchingRef = useRef(false)
+  const [isFetching, setIsFetching] = useState(false)
   const mountedRef = useRef(true)
 
   const handleChatSelect = useCallback(
@@ -243,6 +244,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
     if (isFetchingRef.current) return
 
     isFetchingRef.current = true
+    setIsFetching(true)
 
     try {
       if (USE_SAMPLE_DATA) {
@@ -270,6 +272,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
       }
     } finally {
       isFetchingRef.current = false
+      setIsFetching(false)
     }
   }, [setChats, transformChatElements])
 
@@ -308,7 +311,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
           {filteredChats.length === 0 ? (
             <EmptyState
               hasChats={chats.length > 0}
-              isLoading={isFetchingRef.current}
+              isLoading={isFetching}
               onRefresh={fetchChats}
             />
           ) : (
