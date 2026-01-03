@@ -1,8 +1,6 @@
-import { Virtuoso, type VirtuosoHandle } from "react-virtuoso"
-import { forwardRef, useImperativeHandle, useRef, useCallback, memo } from "react"
+import { forwardRef, useImperativeHandle, useRef, useCallback, memo, useEffect } from "react"
 import { store } from "../../../wailsjs/go/models"
 import { MessageItem } from "./MessageItem"
-import clsx from "clsx"
 
 interface MessageListProps {
   chatId: string
@@ -11,11 +9,7 @@ interface MessageListProps {
   onReply?: (message: store.Message) => void
   onQuotedClick?: (messageId: string) => void
   onLoadMore?: () => void
-  onPrefetch?: () => void
-  onTrimOldMessages?: () => void
-  onRangeChanged?: (range: { startIndex: number; endIndex: number }) => void
   onAtBottomChange?: (atBottom: boolean) => void
-  firstItemIndex: number
   isLoading?: boolean
   hasMore?: boolean
   highlightedMessageId?: string | null
@@ -36,104 +30,101 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
     onReply,
     onQuotedClick,
     onLoadMore,
-    onPrefetch,
-    onTrimOldMessages,
-    onRangeChanged,
     onAtBottomChange,
-    firstItemIndex,
     isLoading,
     hasMore,
     highlightedMessageId,
   },
   ref,
 ) {
-  const virtuosoRef = useRef<VirtuosoHandle>(null)
-  const prefetchTriggeredRef = useRef(false)
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const minScrollTopRef = useRef<number>(Infinity)
 
-  const renderItem = useCallback(
-    (_: number, msg: store.Message) => {
-      const isHighlighted = highlightedMessageId === msg.Info?.ID
-      return (
-        <div
-          className={clsx("px-4 py-1 transition-colors duration-500", {
-            "bg-green-200/50 dark:bg-green-500/30": isHighlighted,
-          })}
-        >
+  const scrollToBottom = useCallback((behavior: "auto" | "smooth" = "smooth") => {
+    const el = containerRef.current
+    if (el) {
+      const top = el.scrollHeight - el.clientHeight
+      try {
+        el.scrollTo({ top, behavior })
+      } catch {
+        el.scrollTop = top
+      }
+    }
+  }, [])
+
+  const scrollToMessage = useCallback((messageId: string) => {
+    const el = containerRef.current
+    if (!el) return
+
+    const messageElement = el.querySelector(`[data-message-id="${messageId}"]`) as HTMLElement
+    if (messageElement) {
+      messageElement.scrollIntoView({ behavior: "smooth", block: "center" })
+    }
+  }, [])
+
+  useImperativeHandle(ref, () => ({ scrollToBottom, scrollToMessage }))
+
+  useEffect(() => {
+    // Scroll to bottom on mount
+    if (containerRef.current && messages.length > 0) {
+      const el = containerRef.current
+      el.scrollTop = el.scrollHeight
+    }
+  }, [])
+
+  useEffect(() => {
+    minScrollTopRef.current = Infinity
+  }, [messages.length])
+
+  const onScroll = useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      const el = e.currentTarget
+
+      minScrollTopRef.current = Math.min(minScrollTopRef.current, el.scrollTop)
+
+      // Trigger load more when ~2 messages are left above viewport (assuming ~100px per message)
+      // Check both current position and minimum reached to catch fast scrolling
+      if (
+        (el.scrollTop <= 200 || minScrollTopRef.current <= 200) &&
+        !isLoading &&
+        hasMore &&
+        onLoadMore
+      ) {
+        onLoadMore()
+        // Reset after triggering load
+        minScrollTopRef.current = Infinity
+      }
+
+      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 5
+      onAtBottomChange?.(atBottom)
+    },
+    [isLoading, hasMore, onLoadMore, onAtBottomChange],
+  )
+
+  return (
+    <div
+      ref={containerRef}
+      onScroll={onScroll}
+      className="h-full overflow-y-auto bg-repeat virtuoso-scroller"
+      style={{ backgroundImage: "url('/assets/images/bg-chat-tile-dark.png')" }}
+    >
+      <div className="flex justify-center py-4">
+        {isLoading ? (
+          <div className="animate-spin h-5 w-5 border-2 border-green-500 rounded-full border-t-transparent" />
+        ) : null}
+      </div>
+      {messages.map(msg => (
+        <div key={msg.Info.ID} data-message-id={msg.Info.ID} className="px-4 py-1">
           <MemoizedMessageItem
             message={msg}
             chatId={chatId}
             sentMediaCache={sentMediaCache}
             onReply={onReply}
             onQuotedClick={onQuotedClick}
+            highlightedMessageId={highlightedMessageId}
           />
         </div>
-      )
-    },
-    [chatId, onReply, onQuotedClick, sentMediaCache, highlightedMessageId],
-  )
-
-  const scrollToBottom = useCallback(
-    (behavior: "auto" | "smooth" = "smooth") => {
-      if (virtuosoRef.current && messages.length > 0) {
-        virtuosoRef.current.scrollToIndex({
-          index: messages.length - 1,
-          align: "end",
-          behavior,
-        })
-      }
-    },
-    [messages.length],
-  )
-
-  const scrollToMessage = useCallback(
-    (messageId: string) => {
-      if (!virtuosoRef.current) return
-
-      const messageIndex = messages.findIndex(m => m.Info?.ID === messageId)
-      if (messageIndex >= 0) {
-        virtuosoRef.current.scrollToIndex({
-          index: messageIndex,
-          align: "center",
-          behavior: "smooth",
-        })
-      }
-    },
-    [messages],
-  )
-
-  useImperativeHandle(ref, () => ({ scrollToBottom, scrollToMessage }))
-
-  const handleStartReached = useCallback(() => {
-    if (!isLoading && hasMore && onLoadMore) {
-      onLoadMore()
-      prefetchTriggeredRef.current = false
-    }
-  }, [isLoading, hasMore, onLoadMore])
-
-  return (
-    <Virtuoso
-      ref={virtuosoRef}
-      data={messages}
-      firstItemIndex={firstItemIndex}
-      initialTopMostItemIndex={Math.max(0, messages.length - 1)}
-      startReached={handleStartReached}
-      followOutput="smooth"
-      alignToBottom
-      rangeChanged={onRangeChanged}
-      atBottomStateChange={onAtBottomChange}
-      increaseViewportBy={{ top: 300, bottom: 0 }}
-      className="flex-1 overflow-y-auto bg-repeat virtuoso-scroller"
-      style={{ backgroundImage: "url('/assets/images/bg-chat-tile-dark.png')" }}
-      itemContent={renderItem}
-      components={{
-        Header: () => (
-          <div className="flex justify-center py-4">
-            {isLoading ? (
-              <div className="animate-spin h-5 w-5 border-2 border-green-500 rounded-full border-t-transparent" />
-            ) : null}
-          </div>
-        ),
-      }}
-    />
+      ))}
+    </div>
   )
 })

@@ -19,7 +19,6 @@ interface ChatDetailProps {
 }
 
 const PAGE_SIZE = 50
-const START_INDEX = 100000
 
 export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailProps) {
   const {
@@ -41,7 +40,6 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
   const [replyingTo, setReplyingTo] = useState<store.Message | null>(null)
   const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null)
 
-  const [firstItemIndex, setFirstItemIndex] = useState(START_INDEX)
   const [hasMore, setHasMore] = useState(true)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [initialLoad, setInitialLoad] = useState(true)
@@ -94,7 +92,6 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
 
       setMessages(chatId, loadedMsgs)
       setHasMore(loadedMsgs.length >= PAGE_SIZE)
-      setFirstItemIndex(START_INDEX)
 
       requestAnimationFrame(() => {
         setIsReady(true)
@@ -121,7 +118,6 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
       const msgs = await FetchMessagesPaged(chatId, PAGE_SIZE, beforeTimestamp)
       if (msgs && msgs.length > 0) {
         prependMessages(chatId, msgs)
-        setFirstItemIndex(prev => prev - msgs.length)
         setHasMore(msgs.length >= PAGE_SIZE)
       } else {
         setHasMore(false)
@@ -310,14 +306,16 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
           updateMessage(data.chatId, data.message)
         }
 
-        requestAnimationFrame(() => {
-          scrollToBottom(false)
-        })
+        if (isAtBottom) {
+          requestAnimationFrame(() => {
+            scrollToBottom(false)
+          })
+        }
       }
     })
 
     return () => unsub()
-  }, [chatId, updateMessage, updatePendingMessageToSent, scrollToBottom, messages])
+  }, [chatId, updateMessage, updatePendingMessageToSent, scrollToBottom, messages, isAtBottom])
 
   useGSAP(() => {
     if (!scrollButtonRef.current) return
@@ -334,6 +332,13 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
         duration: 0.3,
         ease: easeShowRef.current,
       })
+    }
+    //trim the message list to last 20 messages when at bottom
+    if (isAtBottom) {
+      const currentMessages = messages[chatId] || []
+      if (currentMessages.length > 50) {
+        setMessages(chatId, currentMessages.slice(-25))
+      }
     }
   }, [isAtBottom])
 
@@ -373,7 +378,6 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
             onQuotedClick={handleQuotedClick}
             onLoadMore={loadMoreMessages}
             onAtBottomChange={handleAtBottomChange}
-            firstItemIndex={firstItemIndex}
             isLoading={isLoadingMore}
             hasMore={hasMore}
             highlightedMessageId={highlightedMessageId}
