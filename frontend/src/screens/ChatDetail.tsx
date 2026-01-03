@@ -335,8 +335,8 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
     }
     if (isAtBottom) {
       const currentMessages = messages[chatId] || []
-      if (currentMessages.length > PAGE_SIZE*2) {
-        setMessages(chatId, currentMessages.slice(- (currentMessages.length/2)))
+      if (currentMessages.length > PAGE_SIZE * 2) {
+        setMessages(chatId, currentMessages.slice(-(currentMessages.length / 2)))
       }
     }
   }, [isAtBottom])
