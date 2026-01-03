@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback, memo } from "react"
 import clsx from "clsx"
-import { GetChatList } from "../../wailsjs/go/api/Api"
+import { GetChatList, GetCachedAvatar } from "../../wailsjs/go/api/Api"
 import { api } from "../../wailsjs/go/models"
 import { EventsOn } from "../../wailsjs/runtime/runtime"
 import { ChatDetail } from "./ChatDetail"
@@ -244,6 +244,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
   const setSearchTerm = useChatStore(state => state.setSearchTerm)
   const clearUnreadCount = useChatStore(state => state.clearUnreadCount)
   const updateChatLastMessage = useChatStore(state => state.updateChatLastMessage)
+  const updateSingleChat = useChatStore(state => state.updateSingleChat)
   const getChat = useChatStore(state => state.getChat)
   
   // Get filtered chat IDs - only re-renders when IDs or search changes, not on message/timestamp updates
@@ -281,6 +282,20 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
     })
   }, [])
 
+  const loadAvatars = useCallback(async (chatItems: ChatItem[]) => {
+    for (const chat of chatItems) {
+      if (chat.avatar) continue // Already has avatar
+      try {
+        const avatarURL = await GetCachedAvatar(chat.id)
+        if (avatarURL && mountedRef.current) {
+          updateSingleChat(chat.id, { avatar: avatarURL })
+        }
+      } catch (err) {
+        console.error(`Error loading avatar for ${chat.id}:`, err)
+      }
+    }
+  }, [updateSingleChat])
+
   const fetchChats = useCallback(async () => {
     if (isFetchingRef.current) return
 
@@ -303,6 +318,8 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
 
       const items = transformChatElements(chatElements)
       setChats(items)
+      // Load avatars asynchronously without blocking the UI
+      loadAvatars(items)
       initialFetchDoneRef.current = true
     } catch (err) {
       console.error("Error fetching chats:", err)
@@ -409,4 +426,6 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
       </div>
     </div>
   )
-}
+  }
+  
+  

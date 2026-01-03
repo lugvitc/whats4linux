@@ -287,11 +287,13 @@ func (a *Api) GetChatList() ([]ChatElement, error) {
 		}
 
 		// Get cached avatar for all chats (both groups and contacts)
-		if avatarURL, err := a.GetCachedAvatar(cm.JID.String()); err == nil && avatarURL != "" {
-			fc.AvatarURL = avatarURL
-		} else {
-			log.Printf("FAILED: No avatar found for %s: %v", cm.JID.String(), err)
-		}
+		// Avatar loading is now handled asynchronously on the frontend
+		// log.Printf("Fetching avatar for: %s (server: %s)", cm.JID.String(), cm.JID.Server)
+		// if avatarURL, err := a.GetCachedAvatar(cm.JID.String()); err == nil && avatarURL != "" {
+		// 	fc.AvatarURL = avatarURL
+		// } else {
+		// 	log.Printf("FAILED: No avatar found for %s: %v", cm.JID.String(), err)
+		// }
 
 		// todo: remove this later
 		fc.FullName = fmt.Sprintf("%s (%s)", fc.FullName, cm.JID.String())
