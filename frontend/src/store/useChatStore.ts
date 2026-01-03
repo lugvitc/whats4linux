@@ -17,7 +17,12 @@ interface ChatStore {
   setChats: (chats: ChatItem[]) => void
   selectChat: (chat: ChatItem | null) => void
   setSearchTerm: (term: string) => void
-  updateChatLastMessage: (chatId: string, message: string, timestamp?: number, sender?: string) => void
+  updateChatLastMessage: (
+    chatId: string,
+    message: string,
+    timestamp?: number,
+    sender?: string,
+  ) => void
   updateSingleChat: (chatId: string, updates: Partial<ChatItem>) => void
   incrementUnreadCount: (chatId: string) => void
   clearUnreadCount: (chatId: string) => void
@@ -50,7 +55,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       selectedChatId: chat?.id || null,
       selectedChatName: chat?.name || "",
       selectedChatAvatar: chat?.avatar,
-      selectedChatSender: chat?.sender
+      selectedChatSender: chat?.sender,
     }),
 
   setSearchTerm: term => set({ searchTerm: term }),

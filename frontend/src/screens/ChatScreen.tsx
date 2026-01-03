@@ -164,7 +164,7 @@ const ChatListItemContent = memo(({ chat, isSelected, onSelect }: ChatListItemCo
         </span>
       </div>
       <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-        {chat.sender && (chat.type === "group") ? `${chat.sender}: ${chat.subtitle}` : chat.subtitle}
+        {chat.sender && chat.type === "group" ? `${chat.sender}: ${chat.subtitle}` : chat.subtitle}
       </p>
     </div>
   </div>
