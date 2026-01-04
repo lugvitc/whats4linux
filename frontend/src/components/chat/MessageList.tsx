@@ -107,7 +107,7 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
       // Trigger load more when at the top with a small threshold
       // Check if we're near the top and not already loading
       if (
-        el.scrollTop < 100 &&
+        el.scrollTop < 500 &&
         !isLoading &&
         !isLoadingRef.current &&
         hasMore &&
