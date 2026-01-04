@@ -1,7 +1,27 @@
-# Whats4Linux 🐧💬
-<img width="1100" height="560" alt="gh-poster-chatscreen" src="https://github.com/user-attachments/assets/b9088f8b-b462-4aa5-b7a1-68cf03ad4211" />
+<br/>
+<p align="center">
+  <a href="https://github.com/lugvitc/whats4linux">
+    <img src="./assets/logo_curved.png" alt="Logo" width="80" height="80">
+  </a>
 
-![Downloads](https://img.shields.io/github/downloads/lugvitc/whats4linux/total?style=flat-square) ![Contributors](https://img.shields.io/github/contributors/lugvitc/whats4linux?color=dark-green&style=flat-square) ![Issues](https://img.shields.io/github/issues/lugvitc/whats4linux?style=flat-square) ![License](https://img.shields.io/badge/License-AGPL%20v3-blue.svg) [![CI](https://github.com/lugvitc/whats4linux/actions/workflows/format.yaml/badge.svg)](https://github.com/lugvitc/whats4linux/actions/workflows/format.yaml) [![Release](https://github.com/lugvitc/whats4linux/actions/workflows/build.yaml/badge.svg)](https://github.com/lugvitc/whats4linux/actions/workflows/build.yaml)
+  <h3 align="center">Whats4Linux</h3>
+  <p align="center">
+    A robust, cross-platform WhatsApp client.
+    <br/>
+    <br/>
+    <a href="https://github.com/lugvitc/whats4linux/issues">Report Bug</a>
+    .
+    <a href="https://github.com/lugvitc/whats4linux/issues">Request Feature</a>
+  </p>
+</p>
+
+<div align="center">
+
+[![CI](https://github.com/lugvitc/whats4linux/actions/workflows/format.yaml/badge.svg)](https://github.com/lugvitc/whats4linux/actions/workflows/format.yaml) [![Release](https://github.com/lugvitc/whats4linux/actions/workflows/build.yaml/badge.svg)](https://github.com/lugvitc/whats4linux/actions/workflows/build.yaml)
+
+![Downloads](https://img.shields.io/github/downloads/lugvitc/whats4linux/total?style=flat-square) ![Contributors](https://img.shields.io/github/contributors/lugvitc/whats4linux?color=dark-green&style=flat-square) ![Issues](https://img.shields.io/github/issues/lugvitc/whats4linux?style=flat-square) ![License](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)
+
+</div>
 
 
 **Whats4Linux** is an unofficial WhatsApp client for Linux with a **native Go backend** and a **lightweight WebKit-based UI**.
@@ -88,10 +108,11 @@ Whats4Linux is built specifically for Linux:
 - Designed for long-running sessions
 - Works on both Wayland and X11
 
-### Settings Page
+### Screenshots
+<img width="1100" height="560" alt="gh-poster-chatscreen" src="https://github.com/user-attachments/assets/b9088f8b-b462-4aa5-b7a1-68cf03ad4211" />
+
 <img width="1014" height="796" alt="gh-settings-promo" src="https://github.com/user-attachments/assets/a94b86c4-f17a-410d-b7eb-435c4ff98088" />
 
-### Login Page
 <img width="996" height="643" alt="gh-poster-login" src="https://github.com/user-attachments/assets/7cc0e5e7-421f-4c3b-b52c-4b39a72084e4" />
 <!-- TODO: add separate gallery page -->
 
