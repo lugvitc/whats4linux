@@ -73,6 +73,11 @@ flowchart LR
 - No analytics
 - All data stored locally
 
+### Customisation
+- Custom JS, CSS allowed
+- Custom Bezier curve editor for UI animations
+- Easy to use colour scheme editor
+
 ---
 
 ## 🐧 Linux-First Design
@@ -82,6 +87,13 @@ Whats4Linux is built specifically for Linux:
 - Respects XDG base directories
 - Designed for long-running sessions
 - Works on both Wayland and X11
+
+### Settings Page
+<img width="1014" height="796" alt="gh-settings-promo" src="https://github.com/user-attachments/assets/a94b86c4-f17a-410d-b7eb-435c4ff98088" />
+
+### Login Page
+<img width="996" height="643" alt="gh-poster-login" src="https://github.com/user-attachments/assets/7cc0e5e7-421f-4c3b-b52c-4b39a72084e4" />
+<!-- TODO: add separate gallery page -->
 
 ---
 
