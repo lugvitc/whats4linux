@@ -18,6 +18,9 @@ interface MessageListProps {
 export interface MessageListHandle {
   scrollToBottom: (behavior?: "auto" | "smooth") => void
   scrollToMessage: (messageId: string) => void
+  getScrollHeight: () => number
+  getScrollTop: () => number
+  setScrollTop: (top: number) => void
 }
 
 const MemoizedMessageItem = memo(MessageItem)
@@ -38,7 +41,7 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
   ref,
 ) {
   const containerRef = useRef<HTMLDivElement | null>(null)
-  const minScrollTopRef = useRef<number>(Infinity)
+  const loadMoreTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const scrollToBottom = useCallback((behavior: "auto" | "smooth" = "smooth") => {
     const el = containerRef.current
@@ -62,37 +65,51 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
     }
   }, [])
 
-  useImperativeHandle(ref, () => ({ scrollToBottom, scrollToMessage }))
+  const getScrollHeight = useCallback(() => {
+    const el = containerRef.current
+    return el ? el.scrollHeight : 0
+  }, [])
 
-  useEffect(() => {
-    // Scroll to bottom on mount
-    if (containerRef.current && messages.length > 0) {
-      const el = containerRef.current
-      el.scrollTop = el.scrollHeight
+  const getScrollTop = useCallback(() => {
+    const el = containerRef.current
+    return el ? el.scrollTop : 0
+  }, [])
+
+  const setScrollTop = useCallback((top: number) => {
+    const el = containerRef.current
+    if (el) {
+      el.scrollTop = top
     }
   }, [])
 
+  useImperativeHandle(ref, () => ({ scrollToBottom, scrollToMessage, getScrollHeight, getScrollTop, setScrollTop }))
+
   useEffect(() => {
-    minScrollTopRef.current = Infinity
-  }, [messages.length])
+    return () => {
+      if (loadMoreTimeoutRef.current) {
+        clearTimeout(loadMoreTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const onScroll = useCallback(
     (e: React.UIEvent<HTMLDivElement>) => {
       const el = e.currentTarget
 
-      minScrollTopRef.current = Math.min(minScrollTopRef.current, el.scrollTop)
+      // Clear existing timeout
+      if (loadMoreTimeoutRef.current) {
+        clearTimeout(loadMoreTimeoutRef.current)
+      }
 
-      // Trigger load more when ~2 messages are left above viewport (assuming ~100px per message)
-      // Check both current position and minimum reached to catch fast scrolling
-      if (
-        (el.scrollTop <= 200 || minScrollTopRef.current <= 200) &&
-        !isLoading &&
-        hasMore &&
-        onLoadMore
-      ) {
-        onLoadMore()
-        // Reset after triggering load
-        minScrollTopRef.current = Infinity
+      // Check if we should load more
+      const shouldLoadMore = el.scrollTop === 0 && !isLoading && hasMore && onLoadMore
+
+      if (shouldLoadMore) {
+        // Set timeout to load more after scrolling stops
+        loadMoreTimeoutRef.current = setTimeout(() => {
+          onLoadMore()
+          loadMoreTimeoutRef.current = null
+        }, 300) // Wait 300ms after scrolling stops
       }
 
       const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 5

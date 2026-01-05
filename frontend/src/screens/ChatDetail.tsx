@@ -114,11 +114,25 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
     const oldestMessage = currentMessages[0]
     const beforeTimestamp = Math.floor(new Date(oldestMessage.Info.Timestamp).getTime() / 1000)
 
+    // Store current scroll position before loading
+    const oldScrollHeight = messageListRef.current?.getScrollHeight() || 0
+    const oldScrollTop = messageListRef.current?.getScrollTop() || 0
+
     try {
       const msgs = await FetchMessagesPaged(chatId, PAGE_SIZE, beforeTimestamp)
       if (msgs && msgs.length > 0) {
         prependMessages(chatId, msgs)
         setHasMore(msgs.length >= PAGE_SIZE)
+
+        // Adjust scroll position after prepending
+        requestAnimationFrame(() => {
+          const newScrollHeight = messageListRef.current?.getScrollHeight() || 0
+          const scrollAdjustment = newScrollHeight - oldScrollHeight
+          if (messageListRef.current && scrollAdjustment > 0) {
+            const newScrollTop = oldScrollTop + scrollAdjustment
+            messageListRef.current.setScrollTop(newScrollTop)
+          }
+        })
       } else {
         setHasMore(false)
       }
