@@ -98,6 +98,7 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
     }
   }, [])
 
+
   const onScroll = useCallback(
     (e: React.UIEvent<HTMLDivElement>) => {
       const el = e.currentTarget
@@ -128,7 +129,7 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
     <div
       ref={containerRef}
       onScroll={onScroll}
-      className="h-full overflow-y-auto bg-repeat virtuoso-scroller"
+      className="h-full overflow-y-auto overflow-x-hidden bg-repeat virtuoso-scroller"
       style={{ backgroundImage: "url('/assets/images/bg-chat-tile-dark.png')" }}
     >
       <div className="flex justify-center py-4">
@@ -137,7 +138,7 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
         ) : null}
       </div>
       {messages.map(msg => (
-        <div key={msg.Info.ID} data-message-id={msg.Info.ID} className="px-4 py-1">
+        <div key={msg.Info.ID} data-message-id={msg.Info.ID} className="px-2 py-1 sm:px-4 overflow-x-hidden">
           <MemoizedMessageItem
             message={msg}
             chatId={chatId}
