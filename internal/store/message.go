@@ -19,11 +19,18 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+type Reaction struct {
+	ID        int    `json:"id"`
+	MessageID string `json:"message_id"`
+	SenderID  string `json:"sender_id"`
+	Emoji     string `json:"emoji"`
+}
+
 type Message struct {
 	Info      types.MessageInfo
 	Content   *waE2E.Message
 	Edited    bool
-	Reactions string
+	Reactions []Reaction
 }
 
 const MaxMessageCacheSize = 50
@@ -690,7 +697,6 @@ func InsertMessage(msg *Message) error {
 	var mediaType string
 	var text string
 	var mentions string
-	var reactions string
 
 	// Extract mentions if it's an extended text message
 	var replyToMessageID string
@@ -745,7 +751,6 @@ func InsertMessage(msg *Message) error {
 		replyToMessageID,
 		mentions,
 		msg.Edited,
-		reactions,
 	)
 
 	return err
@@ -815,7 +820,6 @@ func GetMessage(messageID string) (*Message, error) {
 		replyToMessageID string
 		mentions         string
 		edited           bool
-		reactions        string
 	)
 
 	err = db.QueryRow(query.SelectDecodedMessageByID, messageID).Scan(
@@ -830,9 +834,14 @@ func GetMessage(messageID string) (*Message, error) {
 		&replyToMessageID,
 		&mentions,
 		&edited,
-		&reactions,
 	)
 
+	if err != nil {
+		return nil, err
+	}
+
+	// Load reactions for this message
+	reactions, err := GetReactionsByMessageID(messageID)
 	if err != nil {
 		return nil, err
 	}
@@ -858,6 +867,32 @@ func GetMessage(messageID string) (*Message, error) {
 	return msg, nil
 }
 
+func GetReactionsByMessageID(messageID string) ([]Reaction, error) {
+	db, err := sql.Open("sqlite3", misc.GetSQLiteAddress("messages.db"))
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	rows, err := db.Query(query.SelectReactionsByMessageID, messageID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var reactions []Reaction
+	for rows.Next() {
+		var reaction Reaction
+		err := rows.Scan(&reaction.ID, &reaction.MessageID, &reaction.SenderID, &reaction.Emoji)
+		if err != nil {
+			return nil, err
+		}
+		reactions = append(reactions, reaction)
+	}
+
+	return reactions, nil
+}
+
 func AddReactionToMessage(targetID, reaction, senderJID string) error {
 	db, err := sql.Open("sqlite3", misc.GetSQLiteAddress("messages.db"))
 	if err != nil {
@@ -865,38 +900,31 @@ func AddReactionToMessage(targetID, reaction, senderJID string) error {
 	}
 	defer db.Close()
 
-	// First, get the current reactions for the target message
-	var currentReactions string
-	err = db.QueryRow(`SELECT reactions FROM messages WHERE message_id = ?`, targetID).Scan(&currentReactions)
-	if err != nil && err != sql.ErrNoRows {
+	// If reaction is empty, remove all reactions from this sender for this message
+	if reaction == "" {
+		_, err = db.Exec(`DELETE FROM reactions WHERE message_id = ? AND sender_id = ?`, targetID, senderJID)
 		return err
 	}
 
-	var reactions []map[string]string
-	if currentReactions != "" {
-		// Parse existing reactions
-		if err := json.Unmarshal([]byte(currentReactions), &reactions); err != nil {
-			return err
-		}
-	} else {
-		reactions = []map[string]string{}
+	// Start a transaction
+	tx, err := db.Begin()
+	if err != nil {
+		return err
 	}
+	defer tx.Rollback()
 
-	// Add the new reaction
-	newReaction := map[string]string{
-		"reaction":  reaction,
-		"senderJID": senderJID,
-		"targetID":  targetID,
-	}
-	reactions = append(reactions, newReaction)
-
-	// Convert back to JSON
-	reactionsJSON, err := json.Marshal(reactions)
+	// Delete any existing reaction from this sender for this message
+	_, err = tx.Exec(`DELETE FROM reactions WHERE message_id = ? AND sender_id = ?`, targetID, senderJID)
 	if err != nil {
 		return err
 	}
 
-	// Update the message with new reactions
-	_, err = db.Exec(query.UpdateMessageReactions, string(reactionsJSON), targetID)
-	return err
+	// Insert the new reaction
+	_, err = tx.Exec(query.InsertReaction, targetID, senderJID, reaction)
+	if err != nil {
+		return err
+	}
+
+	// Commit the transaction
+	return tx.Commit()
 }

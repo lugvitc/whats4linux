@@ -178,22 +178,31 @@ const (
 		media_type TEXT,
 		reply_to_message_id TEXT,
 		mentions TEXT,
-		edited BOOLEAN DEFAULT FALSE,
-		reactions TEXT
+		edited BOOLEAN DEFAULT FALSE
 	);
 	CREATE INDEX IF NOT EXISTS idx_messages_chat_jid ON messages(chat_jid);
 	CREATE INDEX IF NOT EXISTS idx_messages_sender_jid ON messages(sender_jid);
 	CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp DESC);
+
+	CREATE TABLE IF NOT EXISTS reactions (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		message_id TEXT NOT NULL,
+		sender_id TEXT NOT NULL,
+		emoji TEXT NOT NULL,
+		FOREIGN KEY (message_id) REFERENCES messages(message_id) ON DELETE CASCADE
+	);
+	CREATE INDEX IF NOT EXISTS idx_reactions_message_id ON reactions(message_id);
+	CREATE INDEX IF NOT EXISTS idx_reactions_sender_id ON reactions(sender_id);
 	`
 
 	InsertDecodedMessage = `
 	INSERT OR REPLACE INTO messages 
-	(message_id, chat_jid, sender_jid, timestamp, is_from_me, type, text, media_type, reply_to_message_id, mentions, edited, reactions)
-	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	(message_id, chat_jid, sender_jid, timestamp, is_from_me, type, text, media_type, reply_to_message_id, mentions, edited)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	SelectDecodedMessageByID = `
-	SELECT message_id, chat_jid, sender_jid, timestamp, is_from_me, type, text, media_type, reply_to_message_id, mentions, edited, reactions
+	SELECT message_id, chat_jid, sender_jid, timestamp, is_from_me, type, text, media_type, reply_to_message_id, mentions, edited
 	FROM messages
 	WHERE message_id = ?
 	`
@@ -204,10 +213,22 @@ const (
 	WHERE message_id = ?
 	`
 
-	UpdateMessageReactions = `
-	UPDATE messages
-	SET reactions = ?
+	// Reactions queries
+	InsertReaction = `
+	INSERT INTO reactions (message_id, sender_id, emoji)
+	VALUES (?, ?, ?)
+	`
+
+	DeleteReaction = `
+	DELETE FROM reactions
+	WHERE message_id = ? AND sender_id = ? AND emoji = ?
+	`
+
+	SelectReactionsByMessageID = `
+	SELECT id, message_id, sender_id, emoji
+	FROM reactions
 	WHERE message_id = ?
+	ORDER BY id ASC
 	`
 
 	// Migration queries for messages.db

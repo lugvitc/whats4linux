@@ -34,6 +34,7 @@ export function MessageItem({
   onQuotedClick,
   highlightedMessageId,
 }: MessageItemProps) {
+  // console.log(message)
   const isFromMe = message.Info.IsFromMe
   // Debug: log every render and also when the message updates or unmounts
   // console.log(`[MessageItem] render id=${message.Info.ID} fromMe=${isFromMe} chat=${chatId}`)
