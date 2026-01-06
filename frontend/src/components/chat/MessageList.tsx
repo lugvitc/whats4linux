@@ -137,11 +137,7 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
         ) : null}
       </div>
       {messages.map(msg => (
-        <div
-          key={msg.Info.ID}
-          data-message-id={msg.Info.ID}
-          className="py-1 overflow-x-hidden"
-        >
+        <div key={msg.Info.ID} data-message-id={msg.Info.ID} className="py-1 overflow-x-hidden">
           <MemoizedMessageItem
             message={msg}
             chatId={chatId}
