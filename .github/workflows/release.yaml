@@ -73,11 +73,19 @@ jobs:
             ${{ matrix.webkit && '-tags webkit2_41' || '' }} \
             ${{ env.IS_NIGHTLY && '-ldflags "-X main.BuildType=nightly"' || '' }}
 
+      - name: Zip macOS bundle
+        if: matrix.os == 'macos-latest'
+        run: |
+          cd build/bin
+          ditto -c -k --sequesterRsrc --keepParent \
+            ${{ matrix.binary }} \
+            ${{ matrix.binary }}.zip
+
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}${{ env.IS_NIGHTLY && '-nightly' || '' }}
-          path: build/bin/*
+          path: build/bin/${{ matrix.binary }}*
 
   publish-nightly:
     # if: github.event_name == 'schedule'
