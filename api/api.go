@@ -5,12 +5,14 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"fmt"
+	"html"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/gen2brain/beeep"
 	"github.com/lugvitc/whats4linux/internal/cache"
@@ -975,6 +977,33 @@ func (a *Api) DownloadImageToFile(messageID string) error {
 	return nil
 }
 
-func (a *Api) RenderMarkdown(md string) string {
-	return markdown.MarkdownLinesToHTML(md)
+func replaceMentions(text string, mentionedJIDs []string, a *Api) string {
+	result := text
+
+	for _, jid := range mentionedJIDs {
+		parsedJID, err := types.ParseJID(jid)
+		if err != nil {
+			continue
+		}
+		contact, _ := a.waClient.Store.Contacts.GetContact(a.ctx, parsedJID)
+		displayName := contact.FullName
+		if displayName == "" {
+			displayName = contact.PushName
+		}
+		if displayName == "" {
+			displayName = parsedJID.User
+		}
+
+		mentionPattern := "@" + strings.Split(jid, "@")[0]
+		mentionHTML := `<span class="mention">@` + html.EscapeString(displayName) + `</span>`
+		result = strings.ReplaceAll(result, mentionPattern, mentionHTML)
+	}
+
+	return result
+}
+
+func (a *Api) RenderMarkdown(md string, mentionedJIDs []string) string {
+	processed := markdown.ParseWithMentions(md)
+	processed = replaceMentions(processed, mentionedJIDs, a)
+	return processed
 }

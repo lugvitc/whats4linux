@@ -151,3 +151,9 @@ func MarkdownLinesToHTML(s string) string {
 	close()
 	return out.String()
 }
+
+func ParseWithMentions(s string) string {
+
+	return MarkdownLinesToHTML(s)
+
+}

@@ -171,6 +171,11 @@ blockquote {
   padding-left: 10px;
   opacity: 70%;
 }
+
+.mention {
+  color: #21C063;
+  font-weight: 700;
+}
 @keyframes menuFadeIn {
   from {
     opacity: 0;

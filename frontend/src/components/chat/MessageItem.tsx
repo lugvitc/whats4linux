@@ -119,21 +119,26 @@ export function MessageItem({
   // Render markdown
   useEffect(() => {
     const textContent = content?.conversation || content?.extendedTextMessage?.text
+    const contextInfo = content?.extendedTextMessage?.contextInfo
+    const mentionedJIDs = contextInfo?.mentionedJID || []
+    
     if (textContent) {
-      RenderMarkdown(textContent)
-        .then(html => setRenderedMarkdown(html))
+      RenderMarkdown(textContent, mentionedJIDs)
+        .then((html) => setRenderedMarkdown(html))
         .catch(() => setRenderedMarkdown(textContent))
     }
-  }, [content?.conversation, content?.extendedTextMessage?.text])
+}, [content?.conversation, content?.extendedTextMessage])
 
   useEffect(() => {
     const caption =
       content?.imageMessage?.caption ||
       content?.videoMessage?.caption ||
       content?.documentMessage?.caption
+    const contextInfo = content?.extendedTextMessage?.contextInfo
+    const mentionedJIDs = contextInfo?.mentionedJID || []
     if (caption) {
-      RenderMarkdown(caption)
-        .then(html => setRenderedCaptionMarkdown(html))
+      RenderMarkdown(caption, mentionedJIDs)
+        .then((html) => setRenderedCaptionMarkdown(html))
         .catch(() => setRenderedCaptionMarkdown(caption))
     }
   }, [
