@@ -17,16 +17,19 @@ jobs:
         include:
           - os: ubuntu-latest
             platform: linux/amd64
+            binary: whats4linux-linux
             artifact: whats4linux-linux-amd64
             webkit: true
 
           - os: windows-latest
             platform: windows/amd64
+            binary: whats4linux-windows
             artifact: whats4linux-windows-amd64
             webkit: false
 
           - os: macos-latest
             platform: darwin/amd64
+            binary: whats4linux-darwin
             artifact: whats4linux-macos-amd64
             webkit: false
 
@@ -66,6 +69,7 @@ jobs:
         shell: bash
         run: |
           wails build \
+            -o ${{ matrix.binary }} \
             ${{ matrix.webkit && '-tags webkit2_41' || '' }} \
             ${{ env.IS_NIGHTLY && '-ldflags "-X main.BuildType=nightly"' || '' }}
 
