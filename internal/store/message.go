@@ -7,9 +7,7 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"log"
-	"time"
 
-	"github.com/AnimeKaizoku/cacher"
 	query "github.com/lugvitc/whats4linux/internal/db"
 	"github.com/lugvitc/whats4linux/internal/misc"
 	"go.mau.fi/whatsmeow/proto/waE2E"
@@ -41,7 +39,7 @@ type MessageStore struct {
 	db *sql.DB
 
 	// [chatJID.User] = ChatMessage
-	chatListMap *cacher.Cacher[string, ChatMessage]
+	chatListMap misc.VMap[string, ChatMessage]
 	mCache      misc.VMap[string, uint8]
 
 	stmtInsert *sql.Stmt
@@ -122,16 +120,10 @@ func NewMessageStore() (*MessageStore, error) {
 	}
 
 	ms := &MessageStore{
-		db:      db,
-		writeCh: make(chan writeJob, 100),
-		mCache:  misc.NewVMap[string, uint8](),
-		chatListMap: cacher.NewCacher[string, ChatMessage](
-			&cacher.NewCacherOpts{
-				TimeToLive:    10 * time.Minute,
-				Revaluate:     true,
-				CleanInterval: 15 * time.Minute,
-			},
-		),
+		db:          db,
+		writeCh:     make(chan writeJob, 100),
+		mCache:      misc.NewVMap[string, uint8](),
+		chatListMap: misc.NewVMap[string, ChatMessage](),
 	}
 
 	go ms.runWriter()
@@ -179,7 +171,49 @@ func updateCanonicalJID(ctx context.Context, js store.LIDStore, jid *types.JID) 
 	return
 }
 
+func (ms *MessageStore) migrateChatlist(ctx context.Context, sd store.LIDStore, chat types.JID) {
+	if chat.ActualAgent() == types.LIDDomain {
+		// not a jid, skip
+		return
+	}
+	if _, ok := ms.chatListMap.Get(chat.User); ok {
+		// not a new jid, skip
+		return
+	}
+	// new chat in chatlist
+	// check if a corresponding lid exists
+	lid, err := sd.GetLIDForPN(ctx, chat)
+	if err != nil {
+		return
+	}
+	if lid.User == "" {
+		return
+	}
+	// check if lid has a chatlist entry (means there are messages for this lid chat)
+	if _, ok := ms.chatListMap.Get(lid.User); !ok {
+		// no messages for this lid chat, nothing to migrate
+		return
+	}
+	// migrate all messages from this lid to pn
+	// hack: we won't update the msginfo, just update chat marker in messages for now
+	// complete the migrate on next restart when chat != msginfo.chat
+	ms.writeCh <- func(tx *sql.Tx) error {
+		_, err := tx.Exec(
+			query.UpdateMessagesChat,
+			chat.String(),
+			lid.String(),
+		)
+		return err
+	}
+	log.Printf("Migrated messages.chat marker from LID %s to PN %s\n", lid.String(), chat.String())
+
+	// delete lid chatlist entry from cache
+	ms.chatListMap.Delete(lid.User)
+}
+
 func (ms *MessageStore) ProcessMessageEvent(ctx context.Context, sd store.LIDStore, msg *events.Message) {
+	ms.migrateChatlist(ctx, sd, msg.Info.Chat)
+
 	updateCanonicalJID(ctx, sd, &msg.Info.Chat)
 	updateCanonicalJID(ctx, sd, &msg.Info.Sender)
 
@@ -519,6 +553,8 @@ func (ms *MessageStore) MigrateLIDToPN(ctx context.Context, sd store.LIDStore) e
 				continue
 			}
 
+			chatDiff := messageInfo.Chat.String() != chat // chat marker was updated, migration pending
+
 			chatJid, _ := types.ParseJID(chat)
 			messageInfo.Chat = chatJid
 
@@ -528,7 +564,7 @@ func (ms *MessageStore) MigrateLIDToPN(ctx context.Context, sd store.LIDStore) e
 			cc := updateCanonicalJID(ctx, sd, &messageInfo.Chat)
 			sc := updateCanonicalJID(ctx, sd, &messageInfo.Sender)
 
-			if !cc && !sc {
+			if !cc && !sc && !chatDiff {
 				continue
 			}
 

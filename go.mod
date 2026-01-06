@@ -3,7 +3,6 @@ module github.com/lugvitc/whats4linux
 go 1.24.0
 
 require (
-	github.com/AnimeKaizoku/cacher v1.0.3
 	github.com/gen2brain/beeep v0.11.2
 	github.com/joho/godotenv v1.5.1
 	github.com/mattn/go-sqlite3 v1.14.32

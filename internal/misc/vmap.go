@@ -44,6 +44,12 @@ func (vm *VMap[kT, vT]) Get(key kT) (val vT, ok bool) {
 	return
 }
 
+func (vm *VMap[kT, vT]) Delete(key kT) {
+	vm.mu.Lock()
+	defer vm.mu.Unlock()
+	delete(vm.kv, key)
+}
+
 // GetMap returns the internal map with read lock protection.
 func (kv *VMap[kT, vT]) GetMapWithMutex() (map[kT]vT, *sync.RWMutex) {
 	return kv.kv, &kv.mu

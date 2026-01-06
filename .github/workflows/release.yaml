@@ -1,0 +1,115 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Nightly build at 02:00 UTC
+    - cron: "0 2 * * *"
+
+env:
+  IS_NIGHTLY: ${{ github.event_name == 'schedule' }}
+
+jobs:
+  build:
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+         - os: ubuntu-latest
+           platform: linux/amd64
+           binary: whats4linux-linux
+           artifact: whats4linux-linux-amd64
+           webkit: true
+
+         - os: windows-latest
+           platform: windows/amd64
+           binary: whats4linux-windows.exe
+           artifact: whats4linux-windows-amd64
+           webkit: false
+
+         - os: macos-latest
+           platform: darwin/amd64
+           binary: whats4linux-darwin
+           artifact: whats4linux-macos-amd64
+           webkit: false
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      # Linux-only system deps
+      - name: Install Linux dependencies
+        if: matrix.webkit
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: Install Wails
+        run: |
+          go install github.com/wailsapp/wails/v2/cmd/wails@latest
+          echo "$HOME/go/bin" >> $GITHUB_PATH
+
+      - name: Build Wails app
+        shell: bash
+        run: |
+          wails build \
+            -o ${{ matrix.binary }} \
+            ${{ matrix.webkit && '-tags webkit2_41' || '' }} \
+            ${{ env.IS_NIGHTLY && '-ldflags "-X main.BuildType=nightly"' || '' }}
+
+      - name: Zip macOS bundle
+        if: matrix.os == 'macos-latest'
+        run: |
+          cd build/bin
+          ditto -c -k --sequesterRsrc --keepParent \
+            whats4linux.app \
+            "${{ matrix.binary }}.zip"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}${{ env.IS_NIGHTLY && '-nightly' || '' }}
+          path: build/bin/${{ matrix.binary }}*
+
+  publish-nightly:
+    # if: github.event_name == 'schedule'
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Update nightly tag
+        run: |
+          git tag -f nightly
+          git push -f origin nightly
+
+      - name: Publish nightly GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nightly
+          name: Nightly Build
+          prerelease: true
+          files: dist/**/*

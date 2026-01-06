@@ -59,6 +59,12 @@ const (
 	WHERE message_id = ?;
 	`
 
+	UpdateMessagesChat = `
+	UPDATE messages
+	SET chat = ?
+	WHERE chat = ?;
+	`
+
 	SelectAllMessagesInfo = `
 	SELECT chat, msg_info
 	FROM messages;

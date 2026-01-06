@@ -147,7 +147,11 @@ func MarkdownLinesToHTML(s string) string {
 
 	for _, line := range lines {
 		line = strings.TrimRight(line, "\r")
-
+		if strings.TrimSpace(line) == "" {
+			closeAll()
+			out.WriteString("<br>")
+			continue
+		}
 		// blockquote
 		if strings.HasPrefix(line, "> ") {
 			if !inQuote {
