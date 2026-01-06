@@ -140,7 +140,7 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
         <div
           key={msg.Info.ID}
           data-message-id={msg.Info.ID}
-          className="px-2 py-1 sm:px-4 overflow-x-hidden"
+          className="py-1 overflow-x-hidden"
         >
           <MemoizedMessageItem
             message={msg}
