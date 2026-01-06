@@ -76,9 +76,10 @@ jobs:
       - name: Zip macOS bundle
         if: matrix.os == 'macos-latest'
         run: |
-          echo "matrix.binary = ${{ matrix.binary }}"
-          echo "Contents of build/bin:"
-          ls -la build/bin
+          cd build/bin
+          ditto -c -k --sequesterRsrc --keepParent \
+            whats4linux.app \
+            "${{ matrix.binary }}.zip"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
