@@ -15,17 +15,17 @@ jobs:
       fail-fast: true
       matrix:
         include:
-          - os: ubuntu-latest
-            platform: linux/amd64
-            binary: whats4linux-linux
-            artifact: whats4linux-linux-amd64
-            webkit: true
+ #         - os: ubuntu-latest
+ #           platform: linux/amd64
+ #           binary: whats4linux-linux
+ #           artifact: whats4linux-linux-amd64
+ #           webkit: true
 
-          - os: windows-latest
-            platform: windows/amd64
-            binary: whats4linux-windows.exe
-            artifact: whats4linux-windows-amd64
-            webkit: false
+ #         - os: windows-latest
+ #           platform: windows/amd64
+ #           binary: whats4linux-windows.exe
+ #           artifact: whats4linux-windows-amd64
+ #           webkit: false
 
           - os: macos-latest
             platform: darwin/amd64
@@ -76,11 +76,9 @@ jobs:
       - name: Zip macOS bundle
         if: matrix.os == 'macos-latest'
         run: |
-          cd build/bin
-          ls
-          ditto -c -k --sequesterRsrc --keepParent \
-            ${{ matrix.binary }} \
-            ${{ matrix.binary }}.zip
+          echo "matrix.binary = ${{ matrix.binary }}"
+          echo "Contents of build/bin:"
+          ls -la build/bin
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
