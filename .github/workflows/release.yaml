@@ -2,6 +2,12 @@ name: Release
 
 on:
   workflow_dispatch:
+  schedule:
+    # Nightly build at 02:00 UTC
+    - cron: "0 2 * * *"
+
+env:
+  IS_NIGHTLY: ${{ github.event_name == 'schedule' }}
 
 jobs:
   build:
@@ -59,10 +65,38 @@ jobs:
       - name: Build Wails app
         run: |
           wails build \
-            ${{ matrix.webkit && '-tags webkit2_41' || '' }}
+            ${{ matrix.webkit && '-tags webkit2_41' || '' }} \
+            ${{ env.IS_NIGHTLY && '-ldflags "-X main.BuildType=nightly"' || '' }}
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact }}
+          name: ${{ matrix.artifact }}${{ env.IS_NIGHTLY && '-nightly' || '' }}
           path: build/bin/*
+
+  publish-nightly:
+    # if: github.event_name == 'schedule'
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Update nightly tag
+        run: |
+          git tag -f nightly
+          git push -f origin nightly
+
+      - name: Publish nightly GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nightly
+          name: Nightly Build
+          prerelease: true
+          files: dist/**/*
