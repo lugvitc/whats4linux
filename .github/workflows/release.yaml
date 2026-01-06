@@ -15,23 +15,23 @@ jobs:
       fail-fast: true
       matrix:
         include:
- #         - os: ubuntu-latest
- #           platform: linux/amd64
- #           binary: whats4linux-linux
- #           artifact: whats4linux-linux-amd64
- #           webkit: true
+         - os: ubuntu-latest
+           platform: linux/amd64
+           binary: whats4linux-linux
+           artifact: whats4linux-linux-amd64
+           webkit: true
 
- #         - os: windows-latest
- #           platform: windows/amd64
- #           binary: whats4linux-windows.exe
- #           artifact: whats4linux-windows-amd64
- #           webkit: false
+         - os: windows-latest
+           platform: windows/amd64
+           binary: whats4linux-windows.exe
+           artifact: whats4linux-windows-amd64
+           webkit: false
 
-          - os: macos-latest
-            platform: darwin/amd64
-            binary: whats4linux-darwin
-            artifact: whats4linux-macos-amd64
-            webkit: false
+         - os: macos-latest
+           platform: darwin/amd64
+           binary: whats4linux-darwin
+           artifact: whats4linux-macos-amd64
+           webkit: false
 
     runs-on: ${{ matrix.os }}
 
