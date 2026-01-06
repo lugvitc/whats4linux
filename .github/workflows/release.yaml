@@ -63,6 +63,7 @@ jobs:
           echo "$HOME/go/bin" >> $GITHUB_PATH
 
       - name: Build Wails app
+        shell: bash
         run: |
           wails build \
             ${{ matrix.webkit && '-tags webkit2_41' || '' }} \
