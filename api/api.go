@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/gen2brain/beeep"
 	"github.com/lugvitc/whats4linux/internal/cache"
@@ -63,6 +64,22 @@ type Api struct {
 	waClient     *whatsmeow.Client
 	messageStore *store.MessageStore
 	imageCache   *cache.ImageCache
+}
+
+type Group struct {
+	GroupName        string             `json:"group_name"`
+	GroupTopic       string             `json:"group_topic,omitempty"`
+	IsGroupLock      bool               `json:"is_group_lock"`     // whether the group info can only be edited by admins
+	IsGroupAnnounce  bool               `json:"is_group_announce"` // whether only admins can send messages in the group
+	GroupOwner       Contact            `json:"group_owner"`
+	GroupCreatedAt   time.Time          `json:"group_created_at"`
+	ParticipantCount int                `json:"participant_count"`
+	Participants     []GroupParticipant `json:"group_participants"`
+}
+
+type GroupParticipant struct {
+	Contact Contact `json:"contact"`
+	IsAdmin bool    `json:"is_admin"`
 }
 
 // NewApi creates a new Api application struct
@@ -152,6 +169,12 @@ func (a *Api) FetchGroups() ([]wa.Group, error) {
 }
 
 func (a *Api) GetContact(jid types.JID) (*Contact, error) {
+	if jid.ActualAgent() == types.LIDDomain {
+		canonicalJID, err := a.waClient.Store.LIDs.GetPNForLID(a.ctx, jid)
+		if err == nil {
+			jid = canonicalJID
+		}
+	}
 	contact, err := a.waClient.Store.Contacts.GetContact(a.ctx, jid)
 	if err != nil {
 		return nil, err
@@ -159,7 +182,7 @@ func (a *Api) GetContact(jid types.JID) (*Contact, error) {
 	rawNum := "+" + jid.User
 	// Parse phone number to use as International Format
 	num, err := phonenumbers.Parse(rawNum, "")
-	if err != nil && !phonenumbers.IsValidNumber(num) {
+	if err != nil {
 		return nil, fmt.Errorf("invalid phone number")
 	}
 
@@ -1018,4 +1041,47 @@ func (a *Api) RenderMarkdown(md string, mentionedJIDs []string) string {
 	processed := markdown.MarkdownLinesToHTML(md)
 	processed = replaceMentions(processed, mentionedJIDs, a)
 	return processed
+}
+
+func (a *Api) GetGroupInfo(jidStr string) (Group, error) {
+	if !strings.HasSuffix(jidStr, "@g.us") {
+		return Group{}, fmt.Errorf("JID is not a group JID")
+	}
+	jid, err := types.ParseJID(jidStr)
+	if err != nil {
+		return Group{}, fmt.Errorf("Invalid JID: %w", err)
+	}
+
+	GroupInfo, err := a.waClient.GetGroupInfo(a.ctx, jid)
+
+	if err != nil {
+		return Group{}, err
+	}
+
+	var participants []GroupParticipant
+	for _, p := range GroupInfo.Participants {
+		contact, err := a.GetContact(p.JID)
+		if err != nil {
+			return Group{}, fmt.Errorf("Error fetching participant: %w", err)
+		}
+
+		participants = append(participants, GroupParticipant{
+			Contact: *contact,
+			IsAdmin: p.IsAdmin,
+		})
+	}
+	owner, err := a.GetContact(GroupInfo.OwnerJID)
+	if err != nil {
+		return Group{}, fmt.Errorf("Error fetching owner: %w", err)
+	}
+	return Group{
+		GroupName:        GroupInfo.GroupName.Name,
+		GroupTopic:       GroupInfo.GroupTopic.Topic,
+		IsGroupLock:      GroupInfo.GroupLocked.IsLocked,
+		IsGroupAnnounce:  GroupInfo.GroupAnnounce.IsAnnounce,
+		GroupOwner:       *owner,
+		GroupCreatedAt:   GroupInfo.GroupCreated,
+		ParticipantCount: GroupInfo.ParticipantCount,
+		Participants:     participants,
+	}, nil
 }
