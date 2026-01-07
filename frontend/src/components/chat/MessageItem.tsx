@@ -259,16 +259,16 @@ export function MessageItem({
     <>
       <div
         className={clsx(
-          "flex mb-2 group overflow-hidden",
+          "flex mb-2 group overflow-hidden transition duration-200",
           isFromMe ? "justify-end" : "justify-start",
           {
-            "ring-2 ring-yellow-400": highlightedMessageId === message.Info.ID,
+            "bg-[#21C063]/50 dark:bg-[#21C063]/40": highlightedMessageId === message.Info.ID,
           },
         )}
       >
         <div
           className={clsx(
-            "max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl rounded-lg p-2 shadow-sm relative min-w-0",
+            "max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl rounded-lg p-2 ml-5 shadow-sm relative min-w-0",
             {
               "bg-transparent shadow-none": isSticker,
 
