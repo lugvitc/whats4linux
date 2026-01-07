@@ -249,6 +249,8 @@ export function MessageItem({
     return <span className="italic opacity-50 text-xs">Unsupported Message Type</span>
   }
 
+  const hasMedia = !!(content?.imageMessage || content?.videoMessage)
+
   return (
     <>
       <div
@@ -264,6 +266,7 @@ export function MessageItem({
           className={clsx(
             "max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl rounded-lg p-2 mx-5 shadow-sm relative min-w-0",
             {
+              "w-min": hasMedia,
               "bg-transparent shadow-none": isSticker,
 
               // SENT
@@ -297,7 +300,7 @@ export function MessageItem({
           {contextInfo?.quotedMessage && (
             <QuotedMessage contextInfo={contextInfo} onQuotedClick={onQuotedClick} />
           )}
-          <div className="text-sm break-all whitespace-pre-wrap">{renderContent()}</div>
+          <div className="text-sm break-words whitespace-pre-wrap">{renderContent()}</div>
           <div className="text-[10px] text-right opacity-50 mt-1 flex items-center justify-end gap-1">
             <span>
               {new Date(message.Info.Timestamp).toLocaleTimeString([], {

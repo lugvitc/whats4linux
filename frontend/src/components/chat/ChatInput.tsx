@@ -160,7 +160,7 @@ export function ChatInput({
   }
 
   return (
-    <div className="relative p-3 bg-light-secondary dark:bg-received-bubble-dark-bg">
+    <div className="relative p-2 m-4 bg-light-bg dark:bg-dark-tertiary rounded-full">
       {showEmojiPicker && (
         <div ref={emojiPickerRef} className="absolute bottom-20 left-4 z-50">
           <Suspense fallback={<div className="p-4 text-sm">Loading emojis...</div>}>
@@ -184,7 +184,7 @@ export function ChatInput({
       )}
       {renderReplyPreview()}
       {/* Main Input Row */}
-      <div className="flex items-end gap-2">
+      <div className="flex items-center gap-2">
         {/* Emoji Button */}
         <IconButton ref={emojiButtonRef} onClick={onToggleEmojiPicker} title="Emoji">
           <EmojiIcon />
@@ -205,7 +205,7 @@ export function ChatInput({
         />
 
         {/* Text Input */}
-        <div className="flex-1 bg-white dark:bg-[#2a3942] rounded-lg">
+        <div className="flex-1 bg-light-bg dark:bg-dark-tertiary rounded-full">
           <textarea
             ref={textareaRef}
             value={inputText}
@@ -215,7 +215,7 @@ export function ChatInput({
             placeholder="Type a message"
             className={clsx(
               "w-full p-2 bg-transparent resize-none outline-none max-h-32",
-              "text-gray-900 dark:text-white",
+              "text-gray-900 dark:text-white caret-green",
               "placeholder:text-gray-500",
             )}
             rows={1}
@@ -228,7 +228,7 @@ export function ChatInput({
           disabled={!hasContent}
           className={clsx(
             "p-2 rounded-full text-white transition-colors",
-            hasContent ? "bg-green-500 hover:bg-green-600" : "bg-green-500/50 cursor-not-allowed",
+            hasContent ? "bg-green hover:bg-green/70" : "bg-green/50 cursor-not-allowed",
           )}
         >
           <SendIcon />

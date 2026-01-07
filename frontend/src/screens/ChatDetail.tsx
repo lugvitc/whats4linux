@@ -356,12 +356,12 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
   }, [isAtBottom])
 
   return (
-    <div className="flex flex-col h-full bg-[#efeae2] dark:bg-[#0b141a]">
+    <div className="flex flex-col h-full bg-[#efeae2] dark:bg-dark-bg">
       <ChatHeader chatName={chatName} chatAvatar={chatAvatar} onBack={onBack} />
 
       <div className="flex-1 relative overflow-hidden">
         {(initialLoad || !isReady) && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#efeae2] dark:bg-[#0b141a] z-50">
+          <div className="absolute inset-0 flex items-center justify-center bg-[#efeae2] dark:bg-dark-bg z-50">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500" />
           </div>
         )}

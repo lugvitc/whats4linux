@@ -2,6 +2,8 @@ import { useState, useEffect } from "react"
 import { store } from "../../../wailsjs/go/models"
 import { GetCachedImage, DownloadMedia } from "../../../wailsjs/go/api/Api"
 
+// TODO: fix word wrap for longer words in content
+
 interface MediaContentProps {
   message: store.Message
   type: "image" | "video" | "sticker" | "audio" | "document"
@@ -88,7 +90,7 @@ export function MediaContent({
             src={mediaSrc}
             className={
               type === "image"
-                ? "block w-full max-w-82.5 max-h-100 object-cover rounded-lg cursor-pointer"
+                ? "block min-w-75 max-w-82.5 max-h-100 object-cover rounded-lg cursor-pointer"
                 : "object-contain w-48.75 h-48.75"
             }
             alt="media"

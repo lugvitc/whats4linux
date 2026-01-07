@@ -106,14 +106,14 @@ export function MessageMenu({
       {isMenuOpen && (
         <div
           ref={dropdownRef}
-          className={`absolute ${isFromMe ? "right-0" : "left-0"} ${openUpward ? "bottom-full mb-1" : "mt-1"} w-56 bg-white dark:bg-[#233138] rounded-xl shadow-lg z-50 py-1 border border-gray-200 dark:border-gray-700`}
+          className={`absolute ${isFromMe ? "right-0" : "left-0"} ${openUpward ? "bottom-full mb-1" : "mt-1"} w-56 bg-white dark:bg-dark-secondary rounded-xl shadow-lg z-50 p-2`}
           style={{
             animation: isClosing ? "menuFadeOut 0.15s ease-in" : "menuFadeIn 0.15s ease-out",
           }}
         >
           <button
             onClick={() => handleMenuItemClick(onReply)}
-            className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-[#182229] transition-colors text-gray-800 dark:text-gray-200 text-sm"
+            className="rounded-xl w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-gray-800 dark:text-gray-200 text-sm"
           >
             <ReplyIcon />
             <span>Reply</span>
@@ -122,7 +122,7 @@ export function MessageMenu({
           {!isFromMe && onReplyPrivately && (
             <button
               onClick={() => handleMenuItemClick(onReplyPrivately)}
-              className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-[#182229] transition-colors text-gray-800 dark:text-gray-200 text-sm"
+              className="rounded-xl w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-gray-800 dark:text-gray-200 text-sm"
             >
               <ReplyPrivatelyIcon />
               <span>Reply privately</span>
@@ -132,7 +132,7 @@ export function MessageMenu({
           {!isFromMe && onMessage && (
             <button
               onClick={() => handleMenuItemClick(onMessage)}
-              className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-[#182229] transition-colors text-gray-800 dark:text-gray-200 text-sm"
+              className="rounded-xl w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-gray-800 dark:text-gray-200 text-sm"
             >
               <MessageIcon />
               <span>Message</span>
@@ -141,7 +141,7 @@ export function MessageMenu({
 
           <button
             onClick={() => handleMenuItemClick(onCopy)}
-            className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-[#182229] transition-colors text-gray-800 dark:text-gray-200 text-sm"
+            className="rounded-xl w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-gray-800 dark:text-gray-200 text-sm"
           >
             <CopyIcon />
             <span>Copy</span>
@@ -149,7 +149,7 @@ export function MessageMenu({
 
           <button
             onClick={() => handleMenuItemClick(onReact)}
-            className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-[#182229] transition-colors text-gray-800 dark:text-gray-200 text-sm"
+            className="rounded-xl w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-gray-800 dark:text-gray-200 text-sm"
           >
             <ReactIcon />
             <span>React</span>
@@ -157,7 +157,7 @@ export function MessageMenu({
 
           <button
             onClick={() => handleMenuItemClick(onForward)}
-            className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-[#182229] transition-colors text-gray-800 dark:text-gray-200 text-sm"
+            className="rounded-xl w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-gray-800 dark:text-gray-200 text-sm"
           >
             <ForwardIcon />
             <span>Forward</span>
@@ -165,7 +165,7 @@ export function MessageMenu({
 
           <button
             onClick={() => handleMenuItemClick(onStar)}
-            className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-[#182229] transition-colors text-gray-800 dark:text-gray-200 text-sm"
+            className="rounded-xl w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-gray-800 dark:text-gray-200 text-sm"
           >
             <StarIcon />
             <span>Star</span>
@@ -174,7 +174,7 @@ export function MessageMenu({
           {!isFromMe && onReport && (
             <button
               onClick={() => handleMenuItemClick(onReport)}
-              className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-[#182229] transition-colors text-gray-800 dark:text-gray-200 text-sm"
+              className="rounded-xl w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-gray-800 dark:text-gray-200 text-sm"
             >
               <ReportIcon />
               <span>Report</span>
@@ -183,7 +183,7 @@ export function MessageMenu({
 
           <button
             onClick={() => handleMenuItemClick(onDelete)}
-            className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-[#182229] transition-colors text-gray-800 dark:text-gray-200 text-sm"
+            className="rounded-xl w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-gray-800 dark:text-gray-200 text-sm"
           >
             <DeleteIcon />
             <span>Delete</span>

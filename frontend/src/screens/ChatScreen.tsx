@@ -104,8 +104,8 @@ interface SearchBarProps {
 }
 
 const SearchBar = ({ value, onChange }: SearchBarProps) => (
-  <div className="p-2 bg-white dark:bg-black border-b border-gray-200 dark:border-dark-tertiary">
-    <div className="bg-light-secondary dark:bg-dark-tertiary rounded-lg flex items-center px-4 py-2">
+  <div className="p-2 bg-light-bg dark:bg-dark-bg border-b border-gray-200 dark:border-dark-tertiary">
+    <div className="bg-light-tertiary dark:bg-dark-tertiary rounded-full flex items-center px-4 py-2">
       <div className="text-gray-500 dark:text-gray-400 mr-4">
         <SearchIcon />
       </div>
@@ -143,7 +143,7 @@ const ChatListItemContent = memo(({ chat, isSelected, onSelect }: ChatListItemCo
   <div
     onClick={() => onSelect(chat)}
     className={clsx(
-      "flex items-center p-3 cursor-pointer divide-white/75 divide-y",
+      "flex items-center p-3 cursor-pointer divide-white/75 divide-y rounded-xl m-3",
       "hover:bg-gray-100 dark:hover:bg-dark-tertiary",
       isSelected && "bg-gray-200 dark:bg-[#2a2a2a]",
     )}
@@ -401,9 +401,9 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
       {/* Chat List Sidebar */}
       <div
         className={clsx(
-          "flex-col w-full md:w-100",
+          "flex-col w-full md:w-120",
           "border-r border-gray-200 dark:border-dark-tertiary",
-          "bg-white dark:bg-black h-full",
+          "bg-white dark:bg-dark-bg h-full",
           selectedChatId ? "hidden md:flex" : "flex",
         )}
       >

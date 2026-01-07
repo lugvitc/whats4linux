@@ -200,7 +200,7 @@ function Sidebar({
   onBack,
 }: any) {
   return (
-    <div className="w-100 flex flex-col border-r border-gray-200 dark:border-dark-tertiary bg-white dark:bg-black">
+    <div className="w-120 flex flex-col border-r border-gray-200 dark:border-dark-tertiary bg-white dark:bg-dark-bg">
       <div className="h-28 flex flex-col justify-end px-4 pb-2">
         <div className="flex items-center mb-4">
           <button
@@ -277,7 +277,7 @@ function SettingsMenuItem({
       onClick={onClick}
       className={clsx(
         "flex items-center px-4 py-3 cursor-pointer",
-        "hover:bg-gray-100 dark:hover:bg-dark-tertiary",
+        "hover:bg-gray-100 dark:hover:bg-dark-tertiary rounded-xl m-3",
         isSelected && "bg-gray-200 dark:bg-[#2a2a2a]",
       )}
     >

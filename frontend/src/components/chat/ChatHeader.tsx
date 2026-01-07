@@ -8,7 +8,7 @@ interface ChatHeaderProps {
 
 export function ChatHeader({ chatName, chatAvatar, onBack }: ChatHeaderProps) {
   return (
-    <div className="flex items-center p-3 bg-light-secondary dark:bg-received-bubble-dark-bg border-b border-gray-300 dark:border-gray-700">
+    <div className="flex items-center p-3 bg-light-secondary dark:bg-dark-secondary border-b border-gray-300 dark:border-dark-tertiary">
       {onBack && (
         <button onClick={onBack} className="mr-4 md:hidden">
           <GoBackIcon />
