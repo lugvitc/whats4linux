@@ -31,7 +31,8 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
     addPendingMessage,
     updatePendingMessageToSent,
   } = useMessageStore()
-  const { setTypingIndicator, showEmojiPicker, setShowEmojiPicker, chatInfoOpen, setChatInfoOpen } = useUIStore()
+  const { setTypingIndicator, showEmojiPicker, setShowEmojiPicker, chatInfoOpen, setChatInfoOpen } =
+    useUIStore()
   const { chatsById } = useChatStore()
 
   const chatMessages = messages[chatId] || []
@@ -363,100 +364,100 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
   return (
     <div className="flex h-full">
       <div className="flex flex-col flex-1">
-        <ChatHeader 
-          chatName={chatName} 
-          chatAvatar={chatAvatar} 
+        <ChatHeader
+          chatName={chatName}
+          chatAvatar={chatAvatar}
           onBack={onBack}
           onInfoClick={() => setChatInfoOpen(!chatInfoOpen)}
         />
 
-      <div className="flex-1 relative overflow-hidden">
-        {(initialLoad || !isReady) && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#efeae2] dark:bg-dark-bg z-50">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500" />
-          </div>
-        )}
+        <div className="flex-1 relative overflow-hidden">
+          {(initialLoad || !isReady) && (
+            <div className="absolute inset-0 flex items-center justify-center bg-[#efeae2] dark:bg-dark-bg z-50">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500" />
+            </div>
+          )}
 
-        <button
-          ref={scrollButtonRef}
-          onClick={() => scrollToBottom(false)}
-          className="absolute bottom-4 right-8 bg-white dark:bg-received-bubble-dark-bg p-2 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 z-100 hover:bg-gray-100 dark:hover:bg-[#2a3942]"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            width="24"
-            height="24"
-            className="fill-current text-gray-600 dark:text-gray-400"
+          <button
+            ref={scrollButtonRef}
+            onClick={() => scrollToBottom(false)}
+            className="absolute bottom-4 right-8 bg-white dark:bg-received-bubble-dark-bg p-2 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 z-100 hover:bg-gray-100 dark:hover:bg-[#2a3942]"
           >
-            <path d="M12 16.17L4.83 9L3.41 10.41L12 19L20.59 10.41L19.17 9L12 16.17Z" />
-          </svg>
-        </button>
+            <svg
+              viewBox="0 0 24 24"
+              width="24"
+              height="24"
+              className="fill-current text-gray-600 dark:text-gray-400"
+            >
+              <path d="M12 16.17L4.83 9L3.41 10.41L12 19L20.59 10.41L19.17 9L12 16.17Z" />
+            </svg>
+          </button>
 
-        <div className={clsx("h-full", (!isReady || initialLoad) && "invisible")}>
-          <MessageList
-            ref={messageListRef}
-            chatId={chatId}
-            messages={chatMessages}
-            sentMediaCache={sentMediaCache}
-            onReply={setReplyingTo}
-            onQuotedClick={handleQuotedClick}
-            onLoadMore={loadMoreMessages}
-            onAtBottomChange={handleAtBottomChange}
-            isLoading={isLoadingMore}
-            hasMore={hasMore}
-            highlightedMessageId={highlightedMessageId}
-          />
+          <div className={clsx("h-full", (!isReady || initialLoad) && "invisible")}>
+            <MessageList
+              ref={messageListRef}
+              chatId={chatId}
+              messages={chatMessages}
+              sentMediaCache={sentMediaCache}
+              onReply={setReplyingTo}
+              onQuotedClick={handleQuotedClick}
+              onLoadMore={loadMoreMessages}
+              onAtBottomChange={handleAtBottomChange}
+              isLoading={isLoadingMore}
+              hasMore={hasMore}
+              highlightedMessageId={highlightedMessageId}
+            />
+          </div>
         </div>
-      </div>
-      <ChatInput
-        inputText={inputText}
-        pastedImage={pastedImage}
-        selectedFile={selectedFile}
-        selectedFileType={selectedFileType}
-        showEmojiPicker={showEmojiPicker}
-        textareaRef={textareaRef}
-        fileInputRef={fileInputRef}
-        emojiPickerRef={emojiPickerRef}
-        emojiButtonRef={emojiButtonRef}
-        replyingTo={replyingTo}
-        onInputChange={handleInputChange}
-        onKeyDown={e =>
-          e.key === "Enter" && !e.shiftKey && (e.preventDefault(), handleSendMessage())
-        }
-        onPaste={async e => {
-          const items = e.clipboardData?.items
-          for (const item of items || []) {
-            if (item.type.indexOf("image") !== -1) {
-              const file = item.getAsFile()
-              if (file) {
-                const reader = new FileReader()
-                reader.onload = event => setPastedImage(event.target?.result as string)
-                reader.readAsDataURL(file)
+        <ChatInput
+          inputText={inputText}
+          pastedImage={pastedImage}
+          selectedFile={selectedFile}
+          selectedFileType={selectedFileType}
+          showEmojiPicker={showEmojiPicker}
+          textareaRef={textareaRef}
+          fileInputRef={fileInputRef}
+          emojiPickerRef={emojiPickerRef}
+          emojiButtonRef={emojiButtonRef}
+          replyingTo={replyingTo}
+          onInputChange={handleInputChange}
+          onKeyDown={e =>
+            e.key === "Enter" && !e.shiftKey && (e.preventDefault(), handleSendMessage())
+          }
+          onPaste={async e => {
+            const items = e.clipboardData?.items
+            for (const item of items || []) {
+              if (item.type.indexOf("image") !== -1) {
+                const file = item.getAsFile()
+                if (file) {
+                  const reader = new FileReader()
+                  reader.onload = event => setPastedImage(event.target?.result as string)
+                  reader.readAsDataURL(file)
+                }
               }
             }
-          }
-        }}
-        onSendMessage={handleSendMessage}
-        onFileSelect={e => {
-          const file = e.target.files?.[0]
-          if (file) {
-            setSelectedFile(file)
-            setSelectedFileType(file.type.split("/")[0])
-          }
-        }}
-        onRemoveFile={() => {
-          setSelectedFile(null)
-          setPastedImage(null)
-        }}
-        onEmojiClick={emoji => {
-          setInputText(prev => prev + emoji)
-          setShowEmojiPicker(false)
-        }}
-        onToggleEmojiPicker={() => setShowEmojiPicker(!showEmojiPicker)}
-        onCancelReply={() => setReplyingTo(null)}
-      />
+          }}
+          onSendMessage={handleSendMessage}
+          onFileSelect={e => {
+            const file = e.target.files?.[0]
+            if (file) {
+              setSelectedFile(file)
+              setSelectedFileType(file.type.split("/")[0])
+            }
+          }}
+          onRemoveFile={() => {
+            setSelectedFile(null)
+            setPastedImage(null)
+          }}
+          onEmojiClick={emoji => {
+            setInputText(prev => prev + emoji)
+            setShowEmojiPicker(false)
+          }}
+          onToggleEmojiPicker={() => setShowEmojiPicker(!showEmojiPicker)}
+          onCancelReply={() => setReplyingTo(null)}
+        />
       </div>
-      
+
       <ChatInfo
         chatId={chatId}
         chatName={chatName}

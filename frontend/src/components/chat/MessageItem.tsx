@@ -5,7 +5,7 @@ import { MediaContent } from "./MediaContent"
 import { QuotedMessage } from "./QuotedMessage"
 import clsx from "clsx"
 import { MessageMenu } from "./MessageMenu"
-import { ClockPendingIcon, BlueTickIcon,ForwardedIcon } from "../../assets/svgs/chat_icons"
+import { ClockPendingIcon, BlueTickIcon, ForwardedIcon } from "../../assets/svgs/chat_icons"
 import { ForwardIcon } from "../../assets/svgs/message_menu_icons"
 
 interface MessageItemProps {
@@ -299,7 +299,10 @@ export function MessageItem({
             <div className="text-[11px] font-semibold text-blue-500 mb-0.5">{senderName}</div>
           )}
           {contextInfo?.isForwarded && !isSticker && (
-            <div className="text-[10px] flex gap-1 italic items-center opacity-60 mb-1"><ForwardedIcon/>Forwarded</div>
+            <div className="text-[10px] flex gap-1 italic items-center opacity-60 mb-1">
+              <ForwardedIcon />
+              Forwarded
+            </div>
           )}
           {contextInfo?.quotedMessage && (
             <QuotedMessage contextInfo={contextInfo} onQuotedClick={onQuotedClick} />

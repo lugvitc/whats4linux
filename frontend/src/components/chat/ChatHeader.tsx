@@ -27,13 +27,13 @@ export function ChatHeader({ chatName, chatAvatar, onBack, onInfoClick }: ChatHe
           <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">{chatName}</h2>
         </div>
       </div>
-      
-      <button 
+
+      <button
         onClick={onInfoClick}
         className="p-1 hover:bg-gray-200 dark:hover:bg-dark-tertiary rounded-full transition-colors"
         aria-label="Chat info"
       >
-       <InfoIcon/> 
+        <InfoIcon />
       </button>
     </div>
   )
