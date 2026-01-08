@@ -119,35 +119,21 @@ export function MessageItem({
   // Render markdown
   useEffect(() => {
     const textContent = content?.conversation || content?.extendedTextMessage?.text
-    // Parse mentions from the message's mentions field (stored as JSON string)
-    let mentionedJIDs: string[] = []
-    if (message.mentions) {
-      try {
-        mentionedJIDs = JSON.parse(message.mentions)
-      } catch {}
-    }
 
     if (textContent) {
-      RenderMarkdown(textContent, mentionedJIDs)
+      RenderMarkdown(textContent)
         .then(html => setRenderedMarkdown(html))
         .catch(() => setRenderedMarkdown(textContent))
     }
-  }, [content?.conversation, content?.extendedTextMessage, message.mentions])
+  }, [content?.conversation, content?.extendedTextMessage])
 
   useEffect(() => {
     const caption =
       content?.imageMessage?.caption ||
       content?.videoMessage?.caption ||
       content?.documentMessage?.caption
-    // Parse mentions from the message's mentions field
-    let mentionedJIDs: string[] = []
-    if (message.mentions) {
-      try {
-        mentionedJIDs = JSON.parse(message.mentions)
-      } catch {}
-    }
     if (caption) {
-      RenderMarkdown(caption, mentionedJIDs)
+      RenderMarkdown(caption)
         .then(html => setRenderedCaptionMarkdown(html))
         .catch(() => setRenderedCaptionMarkdown(caption))
     }

@@ -5,14 +5,12 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"fmt"
-	"html"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 
 	"github.com/gen2brain/beeep"
 	"github.com/lugvitc/whats4linux/internal/cache"
@@ -726,7 +724,7 @@ func (a *Api) mainEventHandler(evt any) {
 		a.cw.Initialise(a.waClient)
 		a.waClient.SendPresence(a.ctx, types.PresenceAvailable)
 		// Run migration for messages.db
-		err := a.messageStore.MigrateLIDToPNForMessagesDB(a.ctx, a.waClient.Store.LIDs)
+		err := a.messageStore.MigrateLIDToPN(a.ctx, a.waClient.Store.LIDs)
 		if err != nil {
 			log.Println("Messages DB migration failed:", err)
 		} else {
@@ -982,39 +980,7 @@ func (a *Api) DownloadImageToFile(messageID string) error {
 	return nil
 }
 
-func replaceMentions(text string, mentionedJIDs []string, a *Api) string {
-	result := text
-
-	for _, jid := range mentionedJIDs {
-		parsedJID, err := types.ParseJID(jid)
-		if err != nil {
-			continue
-		}
-		if parsedJID.ActualAgent() == types.LIDDomain {
-			canonicalJID, err := a.waClient.Store.LIDs.GetPNForLID(a.ctx, parsedJID)
-			if err == nil {
-				parsedJID = canonicalJID
-			}
-		}
-		contact, _ := a.waClient.Store.Contacts.GetContact(a.ctx, parsedJID)
-		displayName := contact.FullName
-		if displayName == "" {
-			displayName = "~" + contact.PushName
-		}
-		if displayName == "" {
-			displayName = parsedJID.User
-		}
-
-		mentionPattern := "@" + strings.Split(jid, "@")[0]
-		mentionHTML := `<span class="mention">@` + html.EscapeString(displayName) + `</span>`
-		result = strings.ReplaceAll(result, mentionPattern, mentionHTML)
-	}
-
-	return result
-}
-
-func (a *Api) RenderMarkdown(md string, mentionedJIDs []string) string {
+func (a *Api) RenderMarkdown(md string) string {
 	processed := markdown.MarkdownLinesToHTML(md)
-	processed = replaceMentions(processed, mentionedJIDs, a)
 	return processed
 }

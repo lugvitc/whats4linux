@@ -1,9 +1,10 @@
 package store
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
-	"encoding/json"
+	"encoding/gob"
 	"log"
 	"time"
 
@@ -14,6 +15,16 @@ import (
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
 )
+
+func gobDecode(data []byte, v interface{}) error {
+	return gob.NewDecoder(bytes.NewReader(data)).Decode(v)
+}
+
+func gobEncode(v interface{}) ([]byte, error) {
+	var buf bytes.Buffer
+	err := gob.NewEncoder(&buf).Encode(v)
+	return buf.Bytes(), err
+}
 
 type Reaction struct {
 	ID        int    `json:"id"`
@@ -45,6 +56,7 @@ type MessageStore struct {
 	// [chatJID.User] = ChatMessage
 	chatListMap misc.VMap[string, ChatMessage]
 	mCache      misc.VMap[string, uint8]
+	reactionCache misc.VMap[string, map[string][]string]
 
 	stmtInsert *sql.Stmt
 	stmtUpdate *sql.Stmt
@@ -59,6 +71,10 @@ func NewMessageStore() (*MessageStore, error) {
 	}
 
 	if _, err := db.Exec(query.CreateMessagesTable); err != nil {
+		db.Close()
+		return nil, err
+	}
+	if _, err := db.Exec(query.CreateReactionsTable); err != nil {
 		db.Close()
 		return nil, err
 	}
@@ -80,6 +96,7 @@ func NewMessageStore() (*MessageStore, error) {
 		db:          db,
 		chatListMap: misc.NewVMap[string, ChatMessage](),
 		mCache:      misc.NewVMap[string, uint8](),
+		reactionCache: misc.NewVMap[string, map[string][]string](),
 		stmtInsert:  stmtInsert,
 		stmtUpdate:  stmtUpdate,
 		writeCh:     make(chan writeJob, 100),
@@ -183,6 +200,73 @@ func updateCanonicalJID(ctx context.Context, js store.LIDStore, jid *types.JID) 
 	return
 }
 
+func (ms *MessageStore) MigrateLIDToPN(ctx context.Context, sd store.LIDStore) error {
+	log.Println("Starting LID to PN migration for messages...")
+
+	return ms.runSync(func(tx *sql.Tx) error {
+		log.Println("Fetching all messages for migration...")
+		defer log.Println("Migration task completed.")
+		rows, err := tx.Query(query.SelectAllMessagesJIDs)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		stmtUpdate, err := tx.Prepare(query.UpdateMessageJIDs)
+		if err != nil {
+			return err
+		}
+		defer stmtUpdate.Close()
+
+		var (
+			msgID  string
+			chat   string
+			sender string
+			oC, oS string
+		)
+
+		for rows.Next() {
+			if err := rows.Scan(&msgID, &chat, &sender); err != nil {
+				continue
+			}
+
+			chatJid, _ := types.ParseJID(chat)
+			senderJid, _ := types.ParseJID(sender)
+
+			oC = chatJid.String()
+			oS = senderJid.String()
+
+			cc := updateCanonicalJID(ctx, sd, &chatJid)
+			sc := updateCanonicalJID(ctx, sd, &senderJid)
+
+			if !cc && !sc {
+				continue
+			}
+
+			if cc {
+				log.Printf("Migrated message %s chat from LID %s to PN %s\n",
+					msgID, oC, chatJid.String())
+			}
+			if sc {
+				log.Printf("Migrated message %s sender from LID %s to PN %s\n",
+					msgID, oS, senderJid.String())
+			}
+
+			_, err = stmtUpdate.Exec(
+				chatJid.String(),
+				senderJid.String(),
+				msgID,
+			)
+
+			if err != nil {
+				log.Println("Failed to update message during LID to PN migration:", err)
+				continue
+			}
+		}
+		return nil
+	})
+}
+
 // ProcessMessageEvent processes a new message event and stores it in messages.db
 func (ms *MessageStore) ProcessMessageEvent(ctx context.Context, sd store.LIDStore, msg *events.Message) {
 	updateCanonicalJID(ctx, sd, &msg.Info.Chat)
@@ -262,15 +346,10 @@ func (ms *MessageStore) InsertMessage(msg *Message) error {
 	var msgType query.MessageType = query.MessageTypeText
 	var mediaType query.MediaType
 	var text string
-	var mentions string
 
 	// Extract mentions if it's an extended text message
 	var replyToMessageID string
 	if msg.Content.GetExtendedTextMessage() != nil && msg.Content.GetExtendedTextMessage().GetContextInfo() != nil {
-		if mentioned := msg.Content.GetExtendedTextMessage().GetContextInfo().GetMentionedJID(); len(mentioned) > 0 {
-			mentionsBytes, _ := json.Marshal(mentioned)
-			mentions = string(mentionsBytes)
-		}
 		replyToMessageID = msg.Content.GetExtendedTextMessage().GetContextInfo().GetStanzaID()
 	}
 
@@ -315,49 +394,36 @@ func (ms *MessageStore) InsertMessage(msg *Message) error {
 			// Log unsupported message type with detailed information
 			log.Printf("Skipping unsupported message type for message ID %s in chat %s", msg.Info.ID, msg.Info.Chat.String())
 			log.Printf("Message content details:")
-			if msg.Content.GetConversation() != "" {
+			switch {
+			case msg.Content.GetConversation() != "":
 				log.Printf("  - Has conversation: %s", msg.Content.GetConversation())
-			}
-			if msg.Content.GetExtendedTextMessage() != nil {
+			case msg.Content.GetExtendedTextMessage() != nil:
 				log.Printf("  - Has extended text: %s", msg.Content.GetExtendedTextMessage().GetText())
-			}
-			if msg.Content.GetImageMessage() != nil {
+			case msg.Content.GetImageMessage() != nil:
 				log.Printf("  - Has image message")
-			}
-			if msg.Content.GetVideoMessage() != nil {
+			case msg.Content.GetVideoMessage() != nil:
 				log.Printf("  - Has video message")
-			}
-			if msg.Content.GetAudioMessage() != nil {
+			case msg.Content.GetAudioMessage() != nil:
 				log.Printf("  - Has audio message")
-			}
-			if msg.Content.GetDocumentMessage() != nil {
+			case msg.Content.GetDocumentMessage() != nil:
 				log.Printf("  - Has document message")
-			}
-			if msg.Content.GetStickerMessage() != nil {
+			case msg.Content.GetStickerMessage() != nil:
 				log.Printf("  - Has sticker message")
-			}
-			if msg.Content.GetContactMessage() != nil {
+			case msg.Content.GetContactMessage() != nil:
 				log.Printf("  - Has contact message")
-			}
-			if msg.Content.GetLocationMessage() != nil {
+			case msg.Content.GetLocationMessage() != nil:
 				log.Printf("  - Has location message")
-			}
-			if msg.Content.GetLiveLocationMessage() != nil {
+			case msg.Content.GetLiveLocationMessage() != nil:
 				log.Printf("  - Has live location message")
-			}
-			if msg.Content.GetPollCreationMessage() != nil {
+			case msg.Content.GetPollCreationMessage() != nil:
 				log.Printf("  - Has poll creation message")
-			}
-			if msg.Content.GetPollUpdateMessage() != nil {
+			case msg.Content.GetPollUpdateMessage() != nil:
 				log.Printf("  - Has poll update message")
-			}
-			if msg.Content.GetProtocolMessage() != nil {
+			case msg.Content.GetProtocolMessage() != nil:
 				log.Printf("  - Has protocol message (type: %v)", msg.Content.GetProtocolMessage().GetType())
-			}
-			if msg.Content.GetReactionMessage() != nil {
+			case msg.Content.GetReactionMessage() != nil:
 				log.Printf("  - Has reaction message")
-			}
-			if msg.Content.GetSenderKeyDistributionMessage() != nil {
+			case msg.Content.GetSenderKeyDistributionMessage() != nil:
 				log.Printf("  - Has sender key distribution message")
 			}
 			log.Printf("Full message content: %+v", msg.Content)
@@ -376,10 +442,13 @@ func (ms *MessageStore) InsertMessage(msg *Message) error {
 			text,
 			mediaType,
 			replyToMessageID,
-			mentions,
 			msg.Edited,
 		)
-		return err
+		if err != nil {
+			return err
+		}
+
+		return nil
 	})
 }
 
@@ -445,7 +514,6 @@ func (ms *MessageStore) GetMessageWithRaw(chatJID string, messageID string) (*Me
 		text      sql.NullString
 		mediaType sql.NullInt64
 		replyTo   sql.NullString
-		mentions  sql.NullString
 		edited    bool
 	)
 
@@ -459,7 +527,6 @@ func (ms *MessageStore) GetMessageWithRaw(chatJID string, messageID string) (*Me
 		&text,
 		&mediaType,
 		&replyTo,
-		&mentions,
 		&edited,
 	)
 
@@ -501,7 +568,6 @@ func (ms *MessageStore) GetMessageByIDWithRaw(messageID string) (*Message, error
 		text      sql.NullString
 		mediaType sql.NullInt64
 		replyTo   sql.NullString
-		mentions  sql.NullString
 		edited    bool
 	)
 
@@ -515,7 +581,6 @@ func (ms *MessageStore) GetMessageByIDWithRaw(messageID string) (*Message, error
 		&text,
 		&mediaType,
 		&replyTo,
-		&mentions,
 		&edited,
 	)
 
@@ -566,7 +631,6 @@ func (ms *MessageStore) GetChatList() []ChatMessage {
 			text      sql.NullString
 			mediaType sql.NullInt64
 			replyTo   sql.NullString
-			mentions  sql.NullString
 			edited    bool
 		)
 
@@ -580,7 +644,6 @@ func (ms *MessageStore) GetChatList() []ChatMessage {
 			&text,
 			&mediaType,
 			&replyTo,
-			&mentions,
 			&edited,
 		); err != nil {
 			continue
@@ -623,84 +686,23 @@ func (ms *MessageStore) GetChatList() []ChatMessage {
 	return chatList
 }
 
-// MigrateLIDToPNForMessagesDB migrates LID JIDs to PN JIDs in messages.db
-func (ms *MessageStore) MigrateLIDToPNForMessagesDB(ctx context.Context, sd store.LIDStore) error {
-	log.Println("Starting LID to PN migration for messages.db...")
-
-	log.Println("Fetching all messages for migration...")
-	defer log.Println("Migration task completed.")
-
-	rows, err := ms.db.Query(query.SelectAllMessagesJIDs)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-
-	stmtUpdate, err := ms.db.Prepare(query.UpdateMessageJIDs)
-	if err != nil {
-		return err
-	}
-	defer stmtUpdate.Close()
-
-	var (
-		messageID    string
-		chatJIDStr   string
-		senderJIDStr string
-		oC, oS       string
-	)
-
-	for rows.Next() {
-		if err := rows.Scan(&messageID, &chatJIDStr, &senderJIDStr); err != nil {
-			continue
-		}
-
-		chatJID, err := types.ParseJID(chatJIDStr)
-		if err != nil {
-			log.Println("Failed to parse chat JID:", err)
-			continue
-		}
-
-		senderJID, err := types.ParseJID(senderJIDStr)
-		if err != nil {
-			log.Println("Failed to parse sender JID:", err)
-			continue
-		}
-
-		oC = chatJID.String()
-		oS = senderJID.String()
-
-		cc := updateCanonicalJID(ctx, sd, &chatJID)
-		sc := updateCanonicalJID(ctx, sd, &senderJID)
-
-		if !cc && !sc {
-			continue
-		}
-
-		_, err = stmtUpdate.Exec(
-			chatJID.String(),
-			senderJID.String(),
-			messageID,
-		)
-
-		if err != nil {
-			log.Println("Failed to update message during LID to PN migration:", err)
-			continue
-		}
-
-		if cc {
-			log.Printf("Migrated message %s chat from LID %s to PN %s\n",
-				messageID, oC, chatJID.String())
-		}
-		if sc {
-			log.Printf("Migrated message %s sender from LID %s to PN %s\n",
-				messageID, oS, senderJID.String())
-		}
-	}
-	return nil
-}
 
 // GetReactionsByMessageID returns all reactions for a message
 func (ms *MessageStore) GetReactionsByMessageID(messageID string) ([]Reaction, error) {
+	if cached, ok := ms.reactionCache.Get(messageID); ok {
+		var reactions []Reaction
+		for emoji, senders := range cached {
+			for _, sender := range senders {
+				reactions = append(reactions, Reaction{
+					MessageID: messageID,
+					SenderID:  sender,
+					Emoji:     emoji,
+				})
+			}
+		}
+		return reactions, nil
+	}
+
 	rows, err := ms.db.Query(query.SelectReactionsByMessageID, messageID)
 	if err != nil {
 		return nil, err
@@ -708,15 +710,18 @@ func (ms *MessageStore) GetReactionsByMessageID(messageID string) ([]Reaction, e
 	defer rows.Close()
 
 	var reactions []Reaction
+	cacheMap := make(map[string][]string)
 	for rows.Next() {
 		var reaction Reaction
-		err := rows.Scan(&reaction.ID, &reaction.MessageID, &reaction.SenderID, &reaction.Emoji)
+		err := rows.Scan(&reaction.MessageID, &reaction.SenderID, &reaction.Emoji)
 		if err != nil {
 			return nil, err
 		}
 		reactions = append(reactions, reaction)
+		cacheMap[reaction.Emoji] = append(cacheMap[reaction.Emoji], reaction.SenderID)
 	}
 
+	ms.reactionCache.Set(messageID, cacheMap)
 	return reactions, nil
 }
 
@@ -724,13 +729,38 @@ func (ms *MessageStore) GetReactionsByMessageID(messageID string) ([]Reaction, e
 func (ms *MessageStore) AddReactionToMessage(targetID, reaction, senderJID string) error {
 	// If reaction is empty, remove all reactions from this sender for this message
 	if reaction == "" {
-		return ms.runSync(func(tx *sql.Tx) error {
+		err := ms.runSync(func(tx *sql.Tx) error {
 			_, err := tx.Exec(`DELETE FROM reactions WHERE message_id = ? AND sender_id = ?`, targetID, senderJID)
 			return err
 		})
+		if err != nil {
+			return err
+		}
+		// Update cache: remove senderJID from all emojis for targetID
+		if cached, ok := ms.reactionCache.Get(targetID); ok {
+			for emoji, senders := range cached {
+				newSenders := make([]string, 0, len(senders))
+				for _, s := range senders {
+					if s != senderJID {
+						newSenders = append(newSenders, s)
+					}
+				}
+				if len(newSenders) == 0 {
+					delete(cached, emoji)
+				} else {
+					cached[emoji] = newSenders
+				}
+			}
+			if len(cached) == 0 {
+				ms.reactionCache.Delete(targetID)
+			} else {
+				ms.reactionCache.Set(targetID, cached)
+			}
+		}
+		return nil
 	}
 
-	return ms.runSync(func(tx *sql.Tx) error {
+	err := ms.runSync(func(tx *sql.Tx) error {
 		// Delete any existing reaction from this sender for this message
 		_, err := tx.Exec(`DELETE FROM reactions WHERE message_id = ? AND sender_id = ?`, targetID, senderJID)
 		if err != nil {
@@ -741,6 +771,34 @@ func (ms *MessageStore) AddReactionToMessage(targetID, reaction, senderJID strin
 		_, err = tx.Exec(query.InsertReaction, targetID, senderJID, reaction)
 		return err
 	})
+	if err != nil {
+		return err
+	}
+	// Update cache: remove sender from all emojis, then add to new emoji
+	if cached, ok := ms.reactionCache.Get(targetID); ok {
+		// Remove from all
+		for emoji, senders := range cached {
+			newSenders := make([]string, 0, len(senders))
+			for _, s := range senders {
+				if s != senderJID {
+					newSenders = append(newSenders, s)
+				}
+			}
+			if len(newSenders) == 0 {
+				delete(cached, emoji)
+			} else {
+				cached[emoji] = newSenders
+			}
+		}
+		// Add to new emoji
+		cached[reaction] = append(cached[reaction], senderJID)
+		ms.reactionCache.Set(targetID, cached)
+	} else {
+		// New map
+		cacheMap := map[string][]string{reaction: {senderJID}}
+		ms.reactionCache.Set(targetID, cacheMap)
+	}
+	return nil
 }
 
 // DecodedMessage represents a message from messages.db with decoded fields
@@ -754,7 +812,6 @@ type DecodedMessage struct {
 	Text             string     `json:"text"`
 	MediaType        int        `json:"media_type"`
 	ReplyToMessageID string     `json:"reply_to_message_id"`
-	Mentions         string     `json:"mentions"`
 	Edited           bool       `json:"edited"`
 	Reactions        []Reaction `json:"reactions"`
 	// Info provides compatibility with frontend that expects types.MessageInfo structure
@@ -830,7 +887,6 @@ func (ms *MessageStore) GetDecodedMessagesPaged(chatJID string, beforeTimestamp 
 		var msg DecodedMessage
 		var mediaType sql.NullInt64
 		var replyTo sql.NullString
-		var mentions sql.NullString
 		var text sql.NullString
 
 		err := rows.Scan(
@@ -843,7 +899,6 @@ func (ms *MessageStore) GetDecodedMessagesPaged(chatJID string, beforeTimestamp 
 			&text,
 			&mediaType,
 			&replyTo,
-			&mentions,
 			&msg.Edited,
 		)
 		if err != nil {
@@ -859,9 +914,6 @@ func (ms *MessageStore) GetDecodedMessagesPaged(chatJID string, beforeTimestamp 
 		}
 		if replyTo.Valid {
 			msg.ReplyToMessageID = replyTo.String
-		}
-		if mentions.Valid {
-			msg.Mentions = mentions.String
 		}
 
 		// Load reactions for this message
@@ -947,7 +999,6 @@ func (ms *MessageStore) GetDecodedMessage(chatJID string, messageID string) (*De
 	var msg DecodedMessage
 	var mediaType sql.NullInt64
 	var replyTo sql.NullString
-	var mentions sql.NullString
 	var text sql.NullString
 
 	err := ms.db.QueryRow(query.SelectDecodedMessageByChatAndID, chatJID, messageID).Scan(
@@ -960,7 +1011,6 @@ func (ms *MessageStore) GetDecodedMessage(chatJID string, messageID string) (*De
 		&text,
 		&mediaType,
 		&replyTo,
-		&mentions,
 		&msg.Edited,
 	)
 
@@ -976,9 +1026,6 @@ func (ms *MessageStore) GetDecodedMessage(chatJID string, messageID string) (*De
 	}
 	if replyTo.Valid {
 		msg.ReplyToMessageID = replyTo.String
-	}
-	if mentions.Valid {
-		msg.Mentions = mentions.String
 	}
 
 	// Load reactions
@@ -1017,7 +1064,6 @@ func (ms *MessageStore) GetDecodedChatList() ([]DecodedMessage, error) {
 		var msg DecodedMessage
 		var mediaType sql.NullInt64
 		var replyTo sql.NullString
-		var mentions sql.NullString
 		var text sql.NullString
 
 		err := rows.Scan(
@@ -1030,7 +1076,6 @@ func (ms *MessageStore) GetDecodedChatList() ([]DecodedMessage, error) {
 			&text,
 			&mediaType,
 			&replyTo,
-			&mentions,
 			&msg.Edited,
 		)
 		if err != nil {
@@ -1046,9 +1091,6 @@ func (ms *MessageStore) GetDecodedChatList() ([]DecodedMessage, error) {
 		}
 		if replyTo.Valid {
 			msg.ReplyToMessageID = replyTo.String
-		}
-		if mentions.Valid {
-			msg.Mentions = mentions.String
 		}
 
 		// Populate Info for frontend compatibility

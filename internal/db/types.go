@@ -3,7 +3,7 @@ package query
 type MessageType uint8
 
 const (
-	MessageTypeText MessageType = iota + 1
+	MessageTypeText MessageType = iota
 	MessageTypeImage
 	MessageTypeVideo
 	MessageTypeAudio

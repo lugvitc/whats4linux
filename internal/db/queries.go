@@ -79,13 +79,14 @@ const (
 		text TEXT,
 		media_type INTEGER,
 		reply_to_message_id TEXT,
-		mentions TEXT,
 		edited BOOLEAN DEFAULT FALSE
 	);
 	CREATE INDEX IF NOT EXISTS idx_messages_chat_jid ON messages(chat_jid);
 	CREATE INDEX IF NOT EXISTS idx_messages_sender_jid ON messages(sender_jid);
 	CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp DESC);
+	`
 
+	CreateReactionsTable = `
 	CREATE TABLE IF NOT EXISTS reactions (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		message_id TEXT NOT NULL,
@@ -99,24 +100,24 @@ const (
 
 	InsertDecodedMessage = `
 	INSERT OR REPLACE INTO messages 
-	(message_id, chat_jid, sender_jid, timestamp, is_from_me, type, text, media_type, reply_to_message_id, mentions, edited)
-	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	(message_id, chat_jid, sender_jid, timestamp, is_from_me, type, text, media_type, reply_to_message_id, edited)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	SelectDecodedMessageByID = `
-	SELECT message_id, chat_jid, sender_jid, timestamp, is_from_me, type, text, media_type, reply_to_message_id, mentions, edited
+	SELECT message_id, chat_jid, sender_jid, timestamp, is_from_me, type, text, media_type, reply_to_message_id, edited
 	FROM messages
 	WHERE message_id = ?
 	`
 
 	SelectMessageWithRawByID = `
-	SELECT message_id, chat_jid, sender_jid, timestamp, is_from_me, type, text, media_type, reply_to_message_id, mentions, edited
+	SELECT message_id, chat_jid, sender_jid, timestamp, is_from_me, type, text, media_type, reply_to_message_id, edited
 	FROM messages
 	WHERE message_id = ?
 	`
 
 	SelectMessageWithRawByChatAndID = `
-	SELECT message_id, chat_jid, sender_jid, timestamp, is_from_me, type, text, media_type, reply_to_message_id, mentions, edited
+	SELECT message_id, chat_jid, sender_jid, timestamp, is_from_me, type, text, media_type, reply_to_message_id, edited
 	FROM messages
 	WHERE chat_jid = ? AND message_id = ?
 	LIMIT 1
@@ -160,9 +161,9 @@ const (
 
 	// Messages.db paged queries (for frontend)
 	SelectDecodedMessagesByChatBeforeTimestamp = `
-	SELECT message_id, chat_jid, sender_jid, timestamp, is_from_me, type, text, media_type, reply_to_message_id, mentions, edited
+	SELECT message_id, chat_jid, sender_jid, timestamp, is_from_me, type, text, media_type, reply_to_message_id, edited
 	FROM (
-		SELECT message_id, chat_jid, sender_jid, timestamp, is_from_me, type, text, media_type, reply_to_message_id, mentions, edited
+		SELECT message_id, chat_jid, sender_jid, timestamp, is_from_me, type, text, media_type, reply_to_message_id, edited
 		FROM messages
 		WHERE chat_jid = ? AND timestamp < ?
 		ORDER BY timestamp DESC
@@ -172,9 +173,9 @@ const (
 	`
 
 	SelectLatestDecodedMessagesByChat = `
-	SELECT message_id, chat_jid, sender_jid, timestamp, is_from_me, type, text, media_type, reply_to_message_id, mentions, edited
+	SELECT message_id, chat_jid, sender_jid, timestamp, is_from_me, type, text, media_type, reply_to_message_id, edited
 	FROM (
-		SELECT message_id, chat_jid, sender_jid, timestamp, is_from_me, type, text, media_type, reply_to_message_id, mentions, edited
+		SELECT message_id, chat_jid, sender_jid, timestamp, is_from_me, type, text, media_type, reply_to_message_id, edited
 		FROM messages
 		WHERE chat_jid = ?
 		ORDER BY timestamp DESC
@@ -184,7 +185,7 @@ const (
 	`
 
 	SelectDecodedMessageByChatAndID = `
-	SELECT message_id, chat_jid, sender_jid, timestamp, is_from_me, type, text, media_type, reply_to_message_id, mentions, edited
+	SELECT message_id, chat_jid, sender_jid, timestamp, is_from_me, type, text, media_type, reply_to_message_id, edited
 	FROM messages
 	WHERE chat_jid = ? AND message_id = ?
 	LIMIT 1
@@ -192,10 +193,10 @@ const (
 
 	// Chat list from messages.db
 	SelectDecodedChatList = `
-	SELECT message_id, chat_jid, sender_jid, timestamp, is_from_me, type, text, media_type, reply_to_message_id, mentions, edited
+	SELECT message_id, chat_jid, sender_jid, timestamp, is_from_me, type, text, media_type, reply_to_message_id, edited
 	FROM (
 		SELECT 
-			message_id, chat_jid, sender_jid, timestamp, is_from_me, type, text, media_type, reply_to_message_id, mentions, edited,
+			message_id, chat_jid, sender_jid, timestamp, is_from_me, type, text, media_type, reply_to_message_id, edited,
 			ROW_NUMBER() OVER (
 				PARTITION BY chat_jid
 				ORDER BY timestamp DESC
@@ -204,5 +205,11 @@ const (
 	)
 	WHERE rn = 1
 	ORDER BY timestamp DESC;
+	`
+
+	UpdateMessagesChat = `
+	UPDATE messages
+	SET chat_jid = ?
+	WHERE chat_jid = ?;
 	`
 )
