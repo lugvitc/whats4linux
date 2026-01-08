@@ -1,10 +1,12 @@
 build/bin
 **/node_modules
 **/dist
-frontend/wailsjs
 .DS_Store
 .env
 whats4linux
 wa.db
 wa.db.1
-vendor
+/gomod2nix-template
+result
+.pkg-config-wrapped
+.wails-wrapped
