@@ -115,7 +115,6 @@ export function MessageItem({
     }
   }, [message.Info.Sender, chatId, isFromMe])
 
-
   const contextInfo =
     content?.extendedTextMessage?.contextInfo ||
     content?.imageMessage?.contextInfo ||
