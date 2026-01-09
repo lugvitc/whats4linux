@@ -537,7 +537,26 @@ func (ms *MessageStore) InsertMessage(msg *Message, parsedHTML string) error {
 	}
 
 	return ms.runSync(func(tx *sql.Tx) error {
-		rawData, err := encodeMessage(msg.Content)
+		var rawData []byte
+		var err error
+
+		// For media messages, store only the media part to save space
+		switch {
+		case msg.Content.GetImageMessage() != nil:
+			rawData, err = encodeMessage(&waE2E.Message{ImageMessage: msg.Content.GetImageMessage()})
+		case msg.Content.GetVideoMessage() != nil:
+			rawData, err = encodeMessage(&waE2E.Message{VideoMessage: msg.Content.GetVideoMessage()})
+		case msg.Content.GetAudioMessage() != nil:
+			rawData, err = encodeMessage(&waE2E.Message{AudioMessage: msg.Content.GetAudioMessage()})
+		case msg.Content.GetDocumentMessage() != nil:
+			rawData, err = encodeMessage(&waE2E.Message{DocumentMessage: msg.Content.GetDocumentMessage()})
+		case msg.Content.GetStickerMessage() != nil:
+			rawData, err = encodeMessage(&waE2E.Message{StickerMessage: msg.Content.GetStickerMessage()})
+		default:
+			// For text and other messages, don't store raw protobuf to save space
+			rawData = nil
+		}
+
 		if err != nil {
 			return err
 		}
@@ -607,9 +626,34 @@ func (ms *MessageStore) UpdateMessageContent(messageID string, content *waE2E.Me
 	}
 
 	return ms.runSync(func(tx *sql.Tx) error {
-		_, err := tx.Stmt(ms.stmtUpdate).Exec(
+		var rawData []byte
+		var err error
+
+		// For media messages, store only the media part to save space
+		switch {
+		case content.GetImageMessage() != nil:
+			rawData, err = encodeMessage(&waE2E.Message{ImageMessage: content.GetImageMessage()})
+		case content.GetVideoMessage() != nil:
+			rawData, err = encodeMessage(&waE2E.Message{VideoMessage: content.GetVideoMessage()})
+		case content.GetAudioMessage() != nil:
+			rawData, err = encodeMessage(&waE2E.Message{AudioMessage: content.GetAudioMessage()})
+		case content.GetDocumentMessage() != nil:
+			rawData, err = encodeMessage(&waE2E.Message{DocumentMessage: content.GetDocumentMessage()})
+		case content.GetStickerMessage() != nil:
+			rawData, err = encodeMessage(&waE2E.Message{StickerMessage: content.GetStickerMessage()})
+		default:
+			// For text and other messages, don't store raw protobuf to save space
+			rawData = nil
+		}
+
+		if err != nil {
+			return err
+		}
+
+		_, err = tx.Stmt(ms.stmtUpdate).Exec(
 			text,
 			msgType,
+			rawData,
 			messageID,
 		)
 		return err

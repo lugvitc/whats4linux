@@ -127,7 +127,7 @@ const (
 
 	UpdateDecodedMessage = `
 	UPDATE messages
-	SET text = ?, type = ?, edited = TRUE
+	SET text = ?, type = ?, edited = TRUE, raw_message = ?
 	WHERE message_id = ?
 	`
 
