@@ -1050,7 +1050,6 @@ func replaceMentions(text string, mentionedJIDs []string, a *Api) string {
 	return result
 }
 
-
 func (a *Api) GetGroupInfo(jidStr string) (Group, error) {
 	if !strings.HasSuffix(jidStr, "@g.us") {
 		return Group{}, fmt.Errorf("JID is not a group JID")

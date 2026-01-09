@@ -16,7 +16,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-
 func encodeMessage(msg *waE2E.Message) ([]byte, error) {
 	return proto.Marshal(msg)
 }
@@ -1211,7 +1210,6 @@ func (ms *MessageStore) GetDecodedMessage(chatJID string, messageID string) (*De
 
 	return &msg, nil
 }
-
 
 // GetDecodedChatList returns the chat list from messages.db with the latest message for each chat
 func (ms *MessageStore) GetDecodedChatList() ([]DecodedMessage, error) {
