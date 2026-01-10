@@ -436,8 +436,10 @@ func (ms *MessageStore) InsertMessage(info *types.MessageInfo, msg *waE2E.Messag
 		width = int(msg.GetStickerMessage().GetWidth())
 		height = int(msg.GetStickerMessage().GetHeight())
 	default:
-		log.Printf("Unknown message content: %+v\n", msg)
-		return nil
+		if text == "" {
+			log.Printf("Unknown message content: %+v\n", msg)
+			return nil
+		}
 	}
 
 	if !forwarded && emc != nil && emc.GetContextInfo() != nil {
