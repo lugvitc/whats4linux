@@ -168,13 +168,18 @@ func (a *Api) FetchGroups() ([]wa.Group, error) {
 	return result, nil
 }
 
-func (a *Api) GetContact(jid types.JID) (*Contact, error) {
+func canonicalUserJID(ctx context.Context, client *whatsmeow.Client, jid types.JID) types.JID {
 	if jid.ActualAgent() == types.LIDDomain {
-		canonicalJID, err := a.waClient.Store.LIDs.GetPNForLID(a.ctx, jid)
-		if err == nil {
-			jid = canonicalJID
+		if pn, err := client.Store.LIDs.GetPNForLID(ctx, jid); err == nil {
+			jid = pn
 		}
 	}
+
+	return jid.ToNonAD()
+}
+
+func (a *Api) GetContact(jid types.JID) (*Contact, error) {
+	jid = canonicalUserJID(a.ctx, a.waClient, jid)
 	contact, err := a.waClient.Store.Contacts.GetContact(a.ctx, jid)
 	if err != nil {
 		return nil, err
@@ -954,6 +959,29 @@ func (a *Api) GetCachedAvatar(jid string, recache bool) (string, error) {
 	return avatarDataURL, nil
 }
 
+// GetSelfAvatar retrieves the avatar of the logged-in user
+//
+// We need to check canonical JID as if we check store's ID, it
+// contains the device ID like so:
+// XXXX:45@s.whatsapp.net instead of XXXX:@s.whatsapp.net
+func (a *Api) GetSelfAvatar(recache bool) (string, error) {
+	jid := canonicalUserJID(a.ctx, a.waClient, *a.waClient.Store.ID)
+	selfJID := jid.String()
+
+	avatar, err := a.GetCachedAvatar(selfJID, true)
+	if err != nil {
+		log.Printf("[SelfAvatar] GetCachedAvatar failed: %v", err)
+		return "", err
+	}
+
+	if avatar == "" {
+		log.Printf("[SelfAvatar] WhatsApp returned no avatar for self")
+		return "", nil
+	}
+
+	return avatar, nil
+}
+
 // getFileExtension returns file extension for mime type
 func getFileExtension(mime string) string {
 	switch mime {
@@ -977,7 +1005,8 @@ func (a *Api) DownloadImageToFile(messageID string) error {
 		return err
 	}
 
-	downloadsDir := filepath.Join(os.Getenv("HOME"), "Downloads")
+	homeDir, _ := os.UserHomeDir()
+	downloadsDir := filepath.Join(homeDir, "Downloads")
 	fileName := messageID + getFileExtension(mime)
 	filePath := filepath.Join(downloadsDir, fileName)
 
@@ -1014,12 +1043,7 @@ func replaceMentions(text string, mentionedJIDs []string, a *Api) string {
 		if err != nil {
 			continue
 		}
-		if parsedJID.ActualAgent() == types.LIDDomain {
-			canonicalJID, err := a.waClient.Store.LIDs.GetPNForLID(a.ctx, parsedJID)
-			if err == nil {
-				parsedJID = canonicalJID
-			}
-		}
+		parsedJID = canonicalUserJID(a.ctx, a.waClient, parsedJID)
 		contact, _ := a.waClient.Store.Contacts.GetContact(a.ctx, parsedJID)
 		displayName := contact.FullName
 		if displayName == "" {

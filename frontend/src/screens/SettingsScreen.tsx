@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import type { ReactNode } from "react"
 import clsx from "clsx"
-import { GetProfile } from "../../wailsjs/go/api/Api"
+import { GetProfile, GetCachedAvatar, GetSelfAvatar } from "../../wailsjs/go/api/Api"
 import { api } from "../../wailsjs/go/models"
 import GeneralSettingsScreen from "./settingscreens/GeneralSettingsScreen"
 import AccountSettingsScreen from "./settingscreens/AccountSettingsScreen"
@@ -12,6 +12,7 @@ import KeyBoardShortCuts from "./settingscreens/KeyBoardShortCuts"
 import HelpAndFeedback from "./settingscreens/HelpAndFeedback"
 import LogOut from "./settingscreens/LogOut"
 import AdvancedScreen from "./settingscreens/AdvancedScreen"
+import { useSelfAvatarStore } from "../store/useSelfAvatarStore.ts"
 import {
   AccountIcon,
   BackIcon,
@@ -118,9 +119,23 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
   const [searchTerm, setSearchTerm] = useState("")
   const [profile, setProfile] = useState<api.Contact | null>(null)
   const [nestedScreen, setNestedScreen] = useState<ReactNode | null>(null)
+  const selfAvatar = useSelfAvatarStore(s => s.selfAvatar)
+  const setSelfAvatar = useSelfAvatarStore(s => s.setSelfAvatar)
+
+  const loadAvatar = useCallback(async () => {
+    try {
+      const avatarURL = await GetSelfAvatar(false)
+
+      setSelfAvatar(avatarURL)
+    } catch (err) {
+      console.error("Self avatar load failed:", err)
+    }
+  }, [setSelfAvatar])
 
   useEffect(() => {
     GetProfile("").then(setProfile)
+
+    loadAvatar()
   }, [])
 
   const handleNavigate = (anchor: ReactNode) => {
@@ -178,6 +193,7 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
         profile={profile}
+        avatar={selfAvatar}
         items={filteredItems}
         selectedCategory={selectedCategory}
         onSelectCategory={setSelectedCategory}
@@ -194,6 +210,7 @@ function Sidebar({
   searchTerm,
   onSearchChange,
   profile,
+  avatar,
   items,
   selectedCategory,
   onSelectCategory,
@@ -214,7 +231,7 @@ function Sidebar({
         <SearchBar value={searchTerm} onChange={onSearchChange} />
       </div>
 
-      <ProfileCard profile={profile} />
+      <ProfileCard profile={profile} avatar={avatar} />
 
       <div className="flex-1 overflow-y-auto">
         {items.map((item: SettingsItem) => (
@@ -245,11 +262,13 @@ function SearchBar({ value, onChange }: { value: string; onChange: (v: string) =
   )
 }
 
-function ProfileCard({ profile }: { profile: api.Contact | null }) {
+function ProfileCard({ profile, avatar }: { profile: api.Contact | null; avatar?: string | null }) {
   return (
     <div className="px-4 py-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary cursor-pointer flex items-center">
       <div className="w-12 h-12 rounded-full overflow-hidden mr-4 bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
-        {profile?.avatar_url ? (
+        {avatar ? (
+          <img src={avatar} alt="Profile" className="w-full h-full object-cover" />
+        ) : profile?.avatar_url ? (
           <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
         ) : (
           <UserIcon />
