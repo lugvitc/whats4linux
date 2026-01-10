@@ -175,11 +175,13 @@ func (a *Api) GetContact(jid types.JID) (*Contact, error) {
 			jid = canonicalJID
 		}
 	}
-	contact, err := a.waClient.Store.Contacts.GetContact(a.ctx, jid)
+
+	baseJID := jid.ToNonAD()
+	contact, err := a.waClient.Store.Contacts.GetContact(a.ctx, baseJID)
 	if err != nil {
 		return nil, err
 	}
-	rawNum := "+" + jid.User
+	rawNum := "+" + baseJID.User
 	// Parse phone number to use as International Format
 	num, err := phonenumbers.Parse(rawNum, "")
 	if err != nil {
@@ -342,7 +344,7 @@ func (a *Api) GetProfile(jidStr string) (Contact, error) {
 		}
 	}
 
-	contact, _ := a.waClient.Store.Contacts.GetContact(a.ctx, targetJID)
+	contact, _ := a.waClient.Store.Contacts.GetContact(a.ctx, targetJID.ToNonAD())
 	rawNum := "+" + targetJID.User
 
 	jid := rawNum
@@ -686,6 +688,15 @@ func (a *Api) mainEventHandler(evt any) {
 		// fmt.Println("[Event] Message:", string(buf))
 
 		parsedHTML := a.processMessageText(v.Message)
+
+		// Handle message edits: re-parse the edited content
+		if protoMsg := v.Message.GetProtocolMessage(); protoMsg != nil && protoMsg.GetType() == waE2E.ProtocolMessage_MESSAGE_EDIT {
+			newContent := protoMsg.GetEditedMessage()
+			if newContent != nil {
+				parsedHTML = a.processMessageText(newContent)
+			}
+		}
+
 		messageID := a.messageStore.ProcessMessageEvent(a.ctx, a.waClient.Store.LIDs, v, parsedHTML)
 
 		// If a message was processed (inserted or updated), emit the decoded message from DB
