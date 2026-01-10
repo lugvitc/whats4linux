@@ -963,7 +963,7 @@ func (a *Api) GetCachedAvatar(jid string, recache bool) (string, error) {
 
 // GetSelfAvatar retrieves the avatar of the logged-in user
 //
-// We need to check canonical JID as if we check store's ID, it 
+// We need to check canonical JID as if we check store's ID, it
 // contains the device ID like so:
 // XXXX:45@s.whatsapp.net instead of XXXX:@s.whatsapp.net
 func (a *Api) GetSelfAvatar(recache bool) (string, error) {
