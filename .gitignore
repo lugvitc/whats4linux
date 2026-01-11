@@ -8,3 +8,7 @@ whats4linux
 wa.db
 wa.db.1
 vendor
+/gomod2nix-template
+result
+.pkg-config-wrapped
+.wails-wrapped
