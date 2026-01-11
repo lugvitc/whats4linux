@@ -30,13 +30,14 @@ frontend = buildNpmPackage {
     npmDepsHash = "sha256-IUzpbPrNFdhWGQL/e9gNRlhZmR6L8ZYJKdB8VRHCViY=";
     
     buildPhase = ''
-      runHook preBuild
+      # runHook preBuild
       
-      # Fix shebang lines in node_modules
-      find node_modules/.bin -type f -exec sed -i 's|#!/usr/bin/env node|#!${nodejs_24}/bin/node|g' {} \;
-      
-      npm run build
-      runHook postBuild
+      # Fix shebang lines for all node executables
+      find node_modules/.bin -type f -exec sed -i 's|#!/usr/bin/env node|#!${nodejs_24}/bin/node|g' {} \; || true
+
+      # Run TypeScript and Vite directly instead of npm script
+      ${nodejs_24}/bin/node node_modules/typescript/bin/tsc && ${nodejs_24}/bin/node node_modules/vite/bin/vite.js build
+      # runHook postBuild
     '';
     
     installPhase = ''
@@ -53,13 +54,13 @@ buildGoModule {
   
   src = ./.;
   
-  vendorHash = "sha256-lIsdQeSsrs1d9Y2uZ9oVj6Ir/C8lMrswr8gDkCK83FU=";
+  vendorHash = "sha256-KzMQoQ1bQlxpx52CGNrCz4H0xJxYtr12GGvke1PksjY=";
   
   proxyVendor = true;
   
   subPackages = [ "." ];
   
-  tags = [ "desktop" ];
+  tags = [ "desktop,production" ];
   
   nativeBuildInputs = [
     makeWrapper
@@ -87,14 +88,11 @@ buildGoModule {
     # Copy pre-built frontend
     cp -r ${frontend}/dist frontend/
     
-    # Ensure vendor is consistent  
-    go mod vendor
-    
     # Set up a proper home directory for binding generation
     export HOME=$(mktemp -d)
     
-    # Build with Wails
-    GOFLAGS="-mod=vendor" wails build -clean -tags "webkit2_41 soup_3"
+    # Build with Wails using buildGoModule's vendoring
+    wails build -s -tags "webkit2_41,soup_3"
   '';
   
   postInstall = ''

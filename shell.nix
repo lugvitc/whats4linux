@@ -29,8 +29,6 @@ pkgs.mkShell {
     pkgs.makeWrapper
     pkgs.fontconfig
     pkgs.pkg-config
-    pkgs.buildGoModule
-    pkgs.buildNpmPackage
   ];
 
   buildInputs = [
@@ -102,7 +100,7 @@ pkgs.mkShell {
     # echo "LDFLAGS set to: $LDFLAGS"
     # echo "HOME set to: $HOME"
     echo -e "Available commands:"
-    echo -e "  $GOAlIASES wails build:$GREEN GOFLAGS=\"-mod=vendor\" wails build -clean -tags \"webkit2_41 soup_3\"$NC"
-    echo -e "  $GOALIASES build-nix:$GREEN build-nix$NC (Nix package build)"
+    echo -e "  Development build:$GREEN wails build -s -tags \"webkit2_41,soup_3\"$NC (uses buildGoModule vendoring)"
+    echo -e "  Nix package build:$GREEN build-nix$NC (reproducible build)"
   '';
 }
