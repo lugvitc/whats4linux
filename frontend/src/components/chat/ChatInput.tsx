@@ -144,7 +144,10 @@ export function ChatInput({
       <div className="mb-2 flex items-start gap-2 rounded-md bg-black/5 dark:bg-white/10 p-2 text-xs">
         <div className="flex-1 min-w-0">
           <div className="font-semibold text-green-600 dark:text-green-400">{senderLabel}</div>
-          <div className="line-clamp-2 opacity-80" dangerouslySetInnerHTML={{ __html: previewText }} />
+          <div
+            className="line-clamp-2 opacity-80"
+            dangerouslySetInnerHTML={{ __html: previewText }}
+          />
         </div>
         <button
           onClick={onCancelReply}
