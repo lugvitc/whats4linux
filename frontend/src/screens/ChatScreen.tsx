@@ -280,25 +280,28 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
     selectChat(null)
   }, [selectChat])
 
-  const transformChatElements = useCallback(async (chatElements: api.ChatElement[]): Promise<ChatItem[]> => {
-    return Promise.all(
-      chatElements.map(async c => {
-        const isGroup = c.jid?.endsWith("@g.us") || false
-        const avatar = c.avatar_url || ""
-        const senderName = c.Sender ? await getContactName(c.Sender) : ""
-        
-        return {
-          id: c.jid || "",
-          name: c.full_name || c.push_name || c.short || c.jid || "Unknown",
-          subtitle: c.latest_message || "",
-          type: isGroup ? "group" : "contact",
-          timestamp: c.LatestTS,
-          avatar: avatar,
-          sender: senderName || "",
-        }
-      })
-    )
-  }, [getContactName])
+  const transformChatElements = useCallback(
+    async (chatElements: api.ChatElement[]): Promise<ChatItem[]> => {
+      return Promise.all(
+        chatElements.map(async c => {
+          const isGroup = c.jid?.endsWith("@g.us") || false
+          const avatar = c.avatar_url || ""
+          const senderName = c.Sender ? await getContactName(c.Sender) : ""
+
+          return {
+            id: c.jid || "",
+            name: c.full_name || c.push_name || c.short || c.jid || "Unknown",
+            subtitle: c.latest_message || "",
+            type: isGroup ? "group" : "contact",
+            timestamp: c.LatestTS,
+            avatar: avatar,
+            sender: senderName || "",
+          }
+        }),
+      )
+    },
+    [getContactName],
+  )
 
   const loadAvatars = useCallback(
     async (chatItems: ChatItem[]) => {
