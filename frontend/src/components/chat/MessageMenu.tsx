@@ -99,15 +99,22 @@ export function MessageMenu({
   }, [isMenuOpen, isFromMe])
 
   useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        closeMenu()
+      }
+    }
     const handleScroll = () => {
       closeMenu()
     }
 
     if (isMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside)
       window.addEventListener("scroll", handleScroll, true)
     }
 
     return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
       window.removeEventListener("scroll", handleScroll, true)
     }
   }, [isMenuOpen])
@@ -121,7 +128,7 @@ export function MessageMenu({
     <div className="absolute top-1 right-1 z-10" ref={menuRef}>
       <button
         onClick={() => setIsMenuOpen(!isMenuOpen)}
-        className="transition-all duration-200 cursor-pointer p-1"
+        className="opacity-0 group-hover:opacity-100 transition-all duration-200 cursor-pointer p-1"
         aria-label="Message options"
       >
         <MenuArrowIcon />

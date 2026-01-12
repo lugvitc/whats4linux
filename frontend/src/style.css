@@ -201,11 +201,15 @@ a {
 .no-formatting b,
 .no-formatting i,
 .no-formatting s,
+.no-formatting .inline-code,
+.no-formatting ul,
+.no-formatting li,
 .no-formatting .mention {
   color: inherit;
   font-weight: inherit;
   font-style: inherit;
   text-decoration: inherit;
+  display: contents;
 }
 
 @keyframes menuFadeIn {

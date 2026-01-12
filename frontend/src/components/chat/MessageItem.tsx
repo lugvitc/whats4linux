@@ -124,7 +124,7 @@ export function MessageItem({
     if (!content) return <span className="italic opacity-50">Empty Message</span>
     else if (content.conversation || content.extendedTextMessage?.text) {
       const htmlContent = content.conversation || content.extendedTextMessage?.text
-      return <div dangerouslySetInnerHTML={{ __html: htmlContent }} />
+      return <div className="pr-5" dangerouslySetInnerHTML={{ __html: htmlContent }} />
     } else if (content.imageMessage)
       return (
         <div className="flex flex-col">
@@ -266,7 +266,7 @@ export function MessageItem({
           )}
           <div className="text-sm break-words whitespace-pre-wrap">{renderContent()}</div>
           <div className="text-[10px] text-right opacity-50 mt-1 flex items-center justify-end gap-1">
-            {message.edited && <span className="text-[9px] opacity-60">edited</span>}
+            {message.edited && <span>Edited</span>}
             <span>
               {new Date(message.Info.Timestamp).toLocaleTimeString([], {
                 hour: "2-digit",

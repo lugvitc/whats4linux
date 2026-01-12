@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { UserAvatar } from "../../assets/svgs/chat_icons"
 import {
   Mediaicon,
@@ -41,13 +41,11 @@ export function ChatInfo({
     }
   }, [isOpen, chatId])
 
-  useEffect(() => {
-    if (isOpen) {
-      loadInfo()
-    }
-  }, [isOpen, chatId])
+  const loadInfo = useCallback(async () => {
+    // Don't re-fetch if we already have the data for this chat
+    if (chatType === "group" && groupInfo?.group_name) return
+    if (chatType === "contact" && contactInfo?.jid === chatId) return
 
-  const loadInfo = async () => {
     setLoading(true)
     try {
       if (chatType === "group") {
@@ -62,12 +60,24 @@ export function ChatInfo({
     } finally {
       setLoading(false)
     }
-  }
+  }, [chatId, chatType, groupInfo, contactInfo])
+
+  useEffect(() => {
+    if (isOpen) {
+      loadInfo()
+    }
+  }, [isOpen, loadInfo])
+
   const participants = groupInfo?.group_participants ?? []
+  const sortedParticipants = participants.sort((a, b) => {
+    if (a.is_admin && !b.is_admin) return -1
+    if (!a.is_admin && b.is_admin) return 1
+    return 0
+  })
   const visibleParticipants = showAllParticipants
-    ? participants
-    : participants.slice(0, MAX_VISIBLE)
-  const hasMore = (groupInfo?.participant_count ?? participants.length) > MAX_VISIBLE
+    ? sortedParticipants
+    : sortedParticipants.slice(0, MAX_VISIBLE)
+  const hasMore = (groupInfo?.participant_count ?? sortedParticipants.length) > MAX_VISIBLE
 
   if (!isOpen) return null
 
