@@ -78,7 +78,9 @@ export function QuotedMessage({
             <span className="h-3 rounded bg-black/10 dark:bg-white/10 w-20" />
           </div>
         ) : (
-          <div className="font-bold truncate" style={{ color: senderColor }}>{name}</div>
+          <div className="font-bold truncate" style={{ color: senderColor }}>
+            {name}
+          </div>
         )}
       </div>
 

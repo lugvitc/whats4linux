@@ -260,10 +260,7 @@ export function MessageItem({
           />
 
           {!isFromMe && chatId.endsWith("@g.us") && (
-            <div 
-            className="text-[11px] font-semibold mb-0.5"
-            style={{ color: senderColor }}
-            >
+            <div className="text-[11px] font-semibold mb-0.5" style={{ color: senderColor }}>
               {senderName}
             </div>
           )}
