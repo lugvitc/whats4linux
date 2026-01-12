@@ -54,13 +54,17 @@ func (a *Api) Startup(ctx context.Context) {
 	if err != nil {
 		panic(err)
 	}
-	// start systray
 	go func() {
 		err := a.us.ListenAndServe()
 		if err != nil {
 			log.Println("Unix socket server error:", err)
 		}
 	}()
+
+	err = misc.StartSystray()
+	if err != nil {
+		panic(err)
+	}
 
 	a.ctx = ctx
 	dbLog := waLog.Stdout("Database", settings.GetLogLevel(), true)

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Whats4Linux
+Exec=whats4linux
+Icon=whats4linux
+Terminal=false
+Categories=Network;

@@ -5,6 +5,7 @@ frontend/wailsjs
 .DS_Store
 .env
 whats4linux
+whats4linux_tray
 wa.db
 wa.db.1
 vendor
@@ -13,3 +14,4 @@ systray/systray
 result
 .pkg-config-wrapped
 .wails-wrapped
+*.AppImage
