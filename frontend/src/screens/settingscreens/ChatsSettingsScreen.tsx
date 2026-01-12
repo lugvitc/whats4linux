@@ -2,7 +2,8 @@ import SettingButtonDesc from "../../components/settings/SettingButtonDesc"
 import { useAppSettingsStore } from "../../store/useAppSettingsStore"
 
 const ChatsSettingsScreen = () => {
-  const { spellCheck, replaceTextWithEmojis, enterIsSend, theme, updateSetting, toggleTheme } = useAppSettingsStore()
+  const { spellCheck, replaceTextWithEmojis, enterIsSend, theme, updateSetting, toggleTheme } =
+    useAppSettingsStore()
 
   return (
     <div className="flex flex-col gap-4">
