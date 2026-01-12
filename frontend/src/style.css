@@ -198,6 +198,16 @@ a {
   text-decoration: underline;
 }
 
+.no-formatting b,
+.no-formatting i,
+.no-formatting s,
+.no-formatting .mention {
+  color: inherit;
+  font-weight: inherit;
+  font-style: inherit;
+  text-decoration: inherit;
+}
+
 @keyframes menuFadeIn {
   from {
     opacity: 0;

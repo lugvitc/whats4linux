@@ -51,7 +51,7 @@ export function QuotedMessage({
   }
 
   const handleClick = () => {
-    const stanzaId = contextInfo.stanzaID
+    const stanzaId = contextInfo.stanzaId
     if (stanzaId && onQuotedClick) {
       onQuotedClick(stanzaId)
     }
@@ -74,7 +74,10 @@ export function QuotedMessage({
         )}
       </div>
 
-      <div className="line-clamp-2 opacity-70">{getText()}</div>
+      <div
+        className="line-clamp-2 opacity-70"
+        dangerouslySetInnerHTML={{ __html: getText() }}
+      ></div>
     </div>
   )
 }

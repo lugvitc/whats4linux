@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react"
 import { store } from "../../../wailsjs/go/models"
-import { DownloadImageToFile, GetContact, RenderMarkdown } from "../../../wailsjs/go/api/Api"
+import { DownloadImageToFile, GetContact } from "../../../wailsjs/go/api/Api"
 import { MediaContent } from "./MediaContent"
 import { QuotedMessage } from "./QuotedMessage"
 import clsx from "clsx"
@@ -8,10 +8,10 @@ import { MessageMenu } from "./MessageMenu"
 import { ClockPendingIcon, BlueTickIcon, ForwardedIcon } from "../../assets/svgs/chat_icons"
 
 interface MessageItemProps {
-  message: store.Message
+  message: store.DecodedMessage
   chatId: string
   sentMediaCache: React.MutableRefObject<Map<string, string>>
-  onReply?: (message: store.Message) => void
+  onReply?: (message: store.DecodedMessage) => void
   onQuotedClick?: (messageId: string) => void
   highlightedMessageId?: string | null
 }
@@ -32,6 +32,7 @@ export function MessageItem({
   onQuotedClick,
   highlightedMessageId,
 }: MessageItemProps) {
+  // console.log(message)
   const isFromMe = message.Info.IsFromMe
   // Debug: log every render and also when the message updates or unmounts
   // console.log(`[MessageItem] render id=${message.Info.ID} fromMe=${isFromMe} chat=${chatId}`)
@@ -45,17 +46,11 @@ export function MessageItem({
   const isSticker = !!content?.stickerMessage
   const isPending = (message as any).isPending || false
   const [senderName, setSenderName] = useState("~ " + message.Info.PushName || "Unknown")
-  const [renderedMarkdown, setRenderedMarkdown] = useState<string>("")
-  const [renderedCaptionMarkdown, setRenderedCaptionMarkdown] = useState<string>("")
 
   // Helper function to render caption with markdown
   const renderCaption = (caption: string | undefined) => {
     if (!caption) return null
-    return renderedCaptionMarkdown ? (
-      <div className="mt-1" dangerouslySetInnerHTML={{ __html: renderedCaptionMarkdown }} />
-    ) : (
-      <div className="mt-1">{caption}</div>
-    )
+    return <div className="mt-1" dangerouslySetInnerHTML={{ __html: caption }} />
   }
 
   const handleImageDownload = async () => {
@@ -77,7 +72,9 @@ export function MessageItem({
   const handleCopy = () => {
     const textToCopy = content?.conversation || content?.extendedTextMessage?.text || ""
     if (textToCopy) {
-      navigator.clipboard.writeText(textToCopy)
+      const div = document.createElement("div")
+      div.innerHTML = textToCopy
+      navigator.clipboard.writeText(div.innerText)
     }
   }
 
@@ -104,6 +101,7 @@ export function MessageItem({
   // Fetch Group Member Names (Feature #2)
   useEffect(() => {
     if (!isFromMe && message.Info.Sender && chatId.endsWith("@g.us")) {
+      // GetContact now accepts a string JID directly
       GetContact(message.Info.Sender)
         .then((contact: any) => {
           if (contact?.full_name || contact?.push_name) {
@@ -114,19 +112,6 @@ export function MessageItem({
     }
   }, [message.Info.Sender, chatId, isFromMe])
 
-  // Render markdown
-  useEffect(() => {
-    const textContent = content?.conversation || content?.extendedTextMessage?.text
-    const contextInfo = content?.extendedTextMessage?.contextInfo
-    const mentionedJIDs = contextInfo?.mentionedJID || []
-
-    if (textContent) {
-      RenderMarkdown(textContent, mentionedJIDs)
-        .then(html => setRenderedMarkdown(html))
-        .catch(() => setRenderedMarkdown(textContent))
-    }
-  }, [content?.conversation, content?.extendedTextMessage])
-
   const contextInfo =
     content?.extendedTextMessage?.contextInfo ||
     content?.imageMessage?.contextInfo ||
@@ -135,31 +120,11 @@ export function MessageItem({
     content?.documentMessage?.contextInfo ||
     content?.stickerMessage?.contextInfo
 
-  useEffect(() => {
-    const caption =
-      content?.imageMessage?.caption ||
-      content?.videoMessage?.caption ||
-      content?.documentMessage?.caption
-    const mentionedJIDs = contextInfo?.mentionedJID || []
-    if (caption) {
-      RenderMarkdown(caption, mentionedJIDs)
-        .then(html => setRenderedCaptionMarkdown(html))
-        .catch(() => setRenderedCaptionMarkdown("error" + caption))
-    }
-  }, [
-    content?.imageMessage?.caption,
-    content?.videoMessage?.caption,
-    content?.documentMessage?.caption,
-  ])
-
   const renderContent = () => {
     if (!content) return <span className="italic opacity-50">Empty Message</span>
     else if (content.conversation || content.extendedTextMessage?.text) {
-      return renderedMarkdown ? (
-        <div dangerouslySetInnerHTML={{ __html: renderedMarkdown }} />
-      ) : (
-        <>{content.conversation || content.extendedTextMessage?.text}</>
-      )
+      const htmlContent = content.conversation || content.extendedTextMessage?.text
+      return <div dangerouslySetInnerHTML={{ __html: htmlContent }} />
     } else if (content.imageMessage)
       return (
         <div className="flex flex-col">
@@ -200,8 +165,8 @@ export function MessageItem({
       const doc = content.documentMessage
       const fileName = doc.fileName || "Document"
       const extension = fileName.split(".").pop()?.toUpperCase() || "FILE"
-      const fileSize =
-        typeof doc.fileLength === "number" ? doc.fileLength : (doc.fileLength as any)?.low || 0
+      // fileLength is not available in DecodedMessageContent, show "Unknown size"
+      const fileSize = 0
 
       return (
         <div className="flex flex-col">
@@ -215,7 +180,7 @@ export function MessageItem({
                 {fileName}
               </div>
               <div className="text-xs opacity-60 text-gray-500 dark:text-gray-400">
-                {formatSize(fileSize)}
+                {fileSize > 0 ? formatSize(fileSize) : "Document"}
               </div>
             </div>
             <button
@@ -235,15 +200,9 @@ export function MessageItem({
           {renderCaption(doc.caption)}
         </div>
       )
-    } else if (content.senderKeyDistributionMessage) {
-      return <span className="italic opacity-50 text-xs">Encryption Info Message</span>
-    } else if (content.reactionMessage) {
-      return (
-        <span className="italic opacity-50 text-xs">
-          Reaction: {content.reactionMessage.text} to message ID {content.reactionMessage.key?.ID}
-        </span>
-      )
     }
+    // Note: senderKeyDistributionMessage and reactionMessage are not stored in messages.db
+    // Reactions are stored separately and shown via the Reactions field
     console.log("Unsupported message content:", content)
     return <span className="italic opacity-50 text-xs">Unsupported Message Type</span>
   }
@@ -254,7 +213,7 @@ export function MessageItem({
     <>
       <div
         className={clsx(
-          "flex mb-2 group overflow-hidden transition duration-200",
+          "flex mb-2 group transition duration-200",
           isFromMe ? "justify-end" : "justify-start",
           {
             "bg-[#21C063]/50 dark:bg-[#21C063]/40": highlightedMessageId === message.Info.ID,
@@ -296,7 +255,7 @@ export function MessageItem({
           {!isFromMe && chatId.endsWith("@g.us") && (
             <div className="text-[11px] font-semibold text-blue-500 mb-0.5">{senderName}</div>
           )}
-          {contextInfo?.isForwarded && (
+          {message.forwarded && (
             <div className="text-[10px] flex gap-1 italic items-center opacity-60 mb-1">
               <ForwardedIcon />
               Forwarded
@@ -307,6 +266,7 @@ export function MessageItem({
           )}
           <div className="text-sm break-words whitespace-pre-wrap">{renderContent()}</div>
           <div className="text-[10px] text-right opacity-50 mt-1 flex items-center justify-end gap-1">
+            {message.edited && <span className="text-[9px] opacity-60">edited</span>}
             <span>
               {new Date(message.Info.Timestamp).toLocaleTimeString([], {
                 hour: "2-digit",

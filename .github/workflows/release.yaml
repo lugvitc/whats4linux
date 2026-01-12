@@ -71,7 +71,7 @@ jobs:
           wails build \
             -o ${{ matrix.binary }} \
             ${{ matrix.webkit && '-tags webkit2_41' || '' }} \
-            ${{ env.IS_NIGHTLY && '-ldflags "-X main.BuildType=nightly"' || '' }}
+            ${{ env.IS_NIGHTLY && '-ldflags "-s -w -X main.version=v1.0.0 -X main.buildType=nightly"' || '' }}
 
       - name: Zip macOS bundle
         if: matrix.os == 'macos-latest'

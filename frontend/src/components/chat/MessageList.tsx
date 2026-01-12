@@ -4,9 +4,9 @@ import { MessageItem } from "./MessageItem"
 
 interface MessageListProps {
   chatId: string
-  messages: store.Message[]
+  messages: store.DecodedMessage[]
   sentMediaCache: React.MutableRefObject<Map<string, string>>
-  onReply?: (message: store.Message) => void
+  onReply?: (message: store.DecodedMessage) => void
   onQuotedClick?: (messageId: string) => void
   onLoadMore?: () => void
   onAtBottomChange?: (atBottom: boolean) => void

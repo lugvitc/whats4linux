@@ -8,7 +8,7 @@ import {
   DisappearingMessagesIcon,
   ReportIcon,
 } from "../../assets/svgs/chat_info_icons"
-import { GetProfile, GetGroupInfo, RenderMarkdownPlain } from "../../../wailsjs/go/api/Api"
+import { GetProfile, GetGroupInfo } from "../../../wailsjs/go/api/Api"
 import { api } from "../../../wailsjs/go/models"
 import { GoBackIcon } from "../../assets/svgs/header_icons"
 
@@ -33,7 +33,6 @@ export function ChatInfo({
   const [groupInfo, setGroupInfo] = useState<api.Group | null>(null)
   const [loading, setLoading] = useState(true)
   const [showAllParticipants, setShowAllParticipants] = useState(false)
-  const [renderedGroupTopic, setRenderedGroupTopic] = useState<string>("")
   const MAX_VISIBLE = 10
 
   useEffect(() => {
@@ -54,10 +53,6 @@ export function ChatInfo({
       if (chatType === "group") {
         const info = await GetGroupInfo(chatId)
         setGroupInfo(info)
-        if (info.group_topic) {
-          const rendered = await RenderMarkdownPlain(info.group_topic)
-          setRenderedGroupTopic(rendered)
-        }
       } else {
         const info = await GetProfile(chatId)
         setContactInfo(info)
@@ -128,10 +123,9 @@ export function ChatInfo({
             {chatType === "group" && groupInfo?.group_topic && (
               <div className="mx-3 border-y border-gray-200 dark:border-dark-tertiary">
                 <div className="p-4">
-                  <div
-                    className="text-gray-900 dark:text-dark-text text-md break-words whitespace-pre-wrap"
-                    dangerouslySetInnerHTML={{ __html: renderedGroupTopic }}
-                  />
+                  <p className="text-gray-900 dark:text-dark-text text-md break-words whitespace-pre-wrap">
+                    {groupInfo.group_topic}
+                  </p>
                   <p className="text-xs text-gray-500 dark:text-dark-muted mt-2">
                     Group created by{" "}
                     {groupInfo.group_owner.full_name ||

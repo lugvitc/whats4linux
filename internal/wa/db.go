@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"sync"
 
-	query "github.com/lugvitc/whats4linux/internal/db"
 	"github.com/lugvitc/whats4linux/internal/misc"
+	"github.com/lugvitc/whats4linux/internal/query"
 
 	"go.mau.fi/whatsmeow"
 )

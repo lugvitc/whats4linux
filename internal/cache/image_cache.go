@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	query "github.com/lugvitc/whats4linux/internal/db"
+	query "github.com/lugvitc/whats4linux/internal/query"
 	_ "github.com/mattn/go-sqlite3"
 )
 

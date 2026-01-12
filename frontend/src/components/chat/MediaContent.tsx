@@ -5,7 +5,7 @@ import { GetCachedImage, DownloadMedia } from "../../../wailsjs/go/api/Api"
 // TODO: fix word wrap for longer words in content
 
 interface MediaContentProps {
-  message: store.Message
+  message: store.DecodedMessage
   type: "image" | "video" | "sticker" | "audio" | "document"
   chatId: string
   sentMediaCache?: React.MutableRefObject<Map<string, string>>

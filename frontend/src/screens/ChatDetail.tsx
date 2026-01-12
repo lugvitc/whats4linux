@@ -40,7 +40,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
   const [pastedImage, setPastedImage] = useState<string | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [selectedFileType, setSelectedFileType] = useState<string>("")
-  const [replyingTo, setReplyingTo] = useState<store.Message | null>(null)
+  const [replyingTo, setReplyingTo] = useState<store.DecodedMessage | null>(null)
   const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null)
 
   const [hasMore, setHasMore] = useState(true)
@@ -304,13 +304,15 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
   }, [chatId, loadInitialMessages, setActiveChatId])
 
   useEffect(() => {
-    const unsub = EventsOn("wa:new_message", (data: { chatId: string; message: store.Message }) => {
+    // New messages from events still use the old Message format for real-time updates
+    // They will be compatible due to the Info and Content structure
+    const unsub = EventsOn("wa:new_message", (data: { chatId: string; message: any }) => {
       if (data?.chatId === chatId) {
-        // Check if this message replaces a pending message
-        const currentMessages = messages[chatId] || []
+        // Use getState to avoid depending on messages array and causing re-subscriptions
+        const currentMessages = useMessageStore.getState().messages[chatId] || []
         const hasPendingMessage = currentMessages.some((m: any) => m.isPending)
 
-        if (hasPendingMessage && data.message.Info.IsFromMe) {
+        if (hasPendingMessage && data.message.Info?.IsFromMe) {
           // Find and replace the most recent pending message
           const pendingMessages = currentMessages.filter((m: any) => m.isPending)
           if (pendingMessages.length > 0) {
@@ -332,7 +334,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
     })
 
     return () => unsub()
-  }, [chatId, updateMessage, updatePendingMessageToSent, scrollToBottom, messages, isAtBottom])
+  }, [chatId, updateMessage, updatePendingMessageToSent, scrollToBottom, isAtBottom])
 
   useGSAP(() => {
     if (!scrollButtonRef.current) return
