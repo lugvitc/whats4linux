@@ -1,8 +1,10 @@
-import React, { lazy, Suspense, useState, useRef } from "react"
+import React, { lazy, Suspense, useState, useRef, useEffect } from "react"
 import clsx from "clsx"
 import data from "@emoji-mart/data"
-import { EmojiIcon, AttachIcon, SendIcon, CloseIcon } from "../../assets/svgs/chat_icons"
+import { EmojiIcon, AttachIcon, SendIcon, CloseIcon, UserAvatar } from "../../assets/svgs/chat_icons"
 import { store } from "../../../wailsjs/go/models"
+import { GetCachedAvatar } from "../../../wailsjs/go/api/Api"
+import { useContactStore } from "../../store/useContactStore"
 
 const EmojiPicker = lazy(() => import("@emoji-mart/react"))
 interface ChatInputProps {
@@ -123,6 +125,7 @@ export function ChatInput({
 }: ChatInputProps) {
   const [mentionSuggestions, setMentionSuggestions] = useState<any[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
+  const [mentionAvatars, setMentionAvatars] = useState<Record<string, string>>({})
   const suggestionsRef = useRef<HTMLDivElement>(null)
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -182,6 +185,66 @@ export function ChatInput({
   }
 
   const hasContent = inputText.trim() || pastedImage || selectedFile
+  const [senderName, setSenderName] = useState<string>("")
+  const [senderColor, setSenderColor] = useState<string>("")
+  const [loadingSenderName, setLoadingSenderName] = useState<boolean>(false)
+  const getContactName = useContactStore(state => state.getContactName)
+  const getContactColor = useContactStore(state => state.getContactColor)
+
+  useEffect(() => {
+    if (!replyingTo || replyingTo.Info.IsFromMe) {
+      setSenderName("")
+      setSenderColor("")
+      setLoadingSenderName(false)
+      return
+    }
+
+    const participant = replyingTo.Info.Sender
+    if (participant) {
+      let mounted = true
+      setLoadingSenderName(true)
+      getContactName(participant)
+        .then((contactName: string) => {
+          if (!mounted) return
+          if (contactName) setSenderName(contactName)
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (!mounted) return
+          setLoadingSenderName(false)
+        })
+      getContactColor(participant)
+        .then((color: string) => {
+          if (!mounted) return
+          if (color) setSenderColor(color)
+        })
+        .catch(() => {})
+
+      return () => {
+        mounted = false
+      }
+    }
+  }, [replyingTo, getContactName, getContactColor])
+
+  useEffect(() => {
+    const loadAvatars = async () => {
+      const newAvatars: Record<string, string> = {}
+      for (const contact of mentionSuggestions) {
+        try {
+          const avatar = await GetCachedAvatar(contact.jid, false)
+          newAvatars[contact.jid] = avatar
+        } catch (err) {
+          console.error("Failed to load avatar for", contact.jid, err)
+        }
+      }
+      setMentionAvatars(newAvatars)
+    }
+    if (mentionSuggestions.length > 0) {
+      loadAvatars()
+    } else {
+      setMentionAvatars({})
+    }
+  }, [mentionSuggestions])
 
   const handleEmojiSelect = (emoji: any) => {
     onEmojiClick(emoji.native)
@@ -200,12 +263,22 @@ export function ChatInput({
       (content?.stickerMessage ? "Sticker" : undefined) ||
       "Message"
 
-    const senderLabel = replyingTo.Info.IsFromMe ? "You" : replyingTo.Info.PushName || "Contact"
+    const senderLabel = replyingTo.Info.IsFromMe
+      ? "You"
+      : senderName || replyingTo.Info.PushName || "Contact"
 
     return (
       <div className="mb-2 flex items-start gap-2 rounded-md bg-black/5 dark:bg-white/10 p-2 text-xs">
         <div className="flex-1 min-w-0">
-          <div className="font-semibold text-green-600 dark:text-green-400">{senderLabel}</div>
+          <div
+            className="font-semibold flex items-center gap-2"
+            style={{ color: replyingTo.Info.IsFromMe ? undefined : senderColor }}
+          >
+            {loadingSenderName && (
+              <span className="w-3 h-3 rounded-full border-2 border-green-600 border-t-transparent animate-spin" />
+            )}
+            {senderLabel}
+          </div>
           <div
             className="line-clamp-2 opacity-80"
             dangerouslySetInnerHTML={{ __html: previewText }}
@@ -225,7 +298,7 @@ export function ChatInput({
   return (
     <div
       className={clsx(
-        "relative p-2 mb-4 mx-5 border border-dark-secondary bg-light-bg dark:bg-dark-tertiary",
+        "relative p-2 mb-4 mx-5 border dark:border-dark-secondary bg-light-bg dark:bg-dark-tertiary",
         replyingTo || pastedImage || selectedFile ? "rounded-t-xl rounded-b-3xl" : "rounded-full",
       )}
     >
@@ -294,15 +367,21 @@ export function ChatInput({
               ref={suggestionsRef}
               className="absolute bottom-full left-0 right-0 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-50 max-h-40 overflow-y-auto"
             >
-              {mentionSuggestions.map((contact) => (
-                <div
-                  key={contact.jid}
-                  onClick={() => handleSuggestionClick(contact)}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
-                >
-                  {contact.full_name || contact.push_name || contact.short || contact.jid}
-                </div>
-              ))}
+              {mentionSuggestions.map((contact) => {
+                const avatar = mentionAvatars[contact.jid]
+                return (
+                  <div
+                    key={contact.jid}
+                    onClick={() => handleSuggestionClick(contact)}
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex items-center gap-2"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 overflow-hidden flex items-center justify-center shrink-0">
+                      {avatar ? <img src={avatar} alt={contact.full_name || contact.push_name || contact.short} className="w-full h-full object-cover" /> : <UserAvatar />}
+                    </div>
+                    <span>{contact.full_name || contact.push_name || contact.short || contact.jid}</span>
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>

@@ -454,6 +454,8 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
         {/* Chat List Sidebar */}
         <ResizablePanel
           defaultSize={30}
+          minSize={300}
+          maxSize={1000}
           className={clsx(
             "flex-col",
             "border-r border-gray-200 dark:border-dark-tertiary",

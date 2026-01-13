@@ -63,7 +63,7 @@ func (a *Api) Startup(ctx context.Context) {
 
 	err = misc.StartSystray()
 	if err != nil {
-		log.Println(err)
+		log.Printf("failed to start systray: %v", err)
 	}
 
 	a.ctx = ctx

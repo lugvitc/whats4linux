@@ -10,8 +10,10 @@ export function QuotedMessage({
   onQuotedClick?: (messageId: string) => void
 }) {
   const [name, setName] = useState<string>("")
+  const [senderColor, setSenderColor] = useState<string>("")
   const [loadingName, setLoadingName] = useState<boolean>(false)
   const getContactName = useContactStore(state => state.getContactName)
+  const getContactColor = useContactStore(state => state.getContactColor)
   const quoted = contextInfo.quotedMessage || contextInfo.QuotedMessage
 
   useEffect(() => {
@@ -29,12 +31,18 @@ export function QuotedMessage({
           if (!mounted) return
           setLoadingName(false)
         })
+      getContactColor(participant)
+        .then((color: string) => {
+          if (!mounted) return
+          if (color) setSenderColor(color)
+        })
+        .catch(() => {})
 
       return () => {
         mounted = false
       }
     }
-  }, [contextInfo, getContactName])
+  }, [contextInfo, getContactName, getContactColor])
 
   if (!quoted) return null
 
@@ -70,7 +78,9 @@ export function QuotedMessage({
             <span className="h-3 rounded bg-black/10 dark:bg-white/10 w-20" />
           </div>
         ) : (
-          <div className="font-bold text-green-600 truncate">{name}</div>
+          <div className="font-bold truncate" style={{ color: senderColor }}>
+            {name}
+          </div>
         )}
       </div>
 

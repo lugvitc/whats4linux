@@ -6,6 +6,7 @@ import { QuotedMessage } from "./QuotedMessage"
 import clsx from "clsx"
 import { MessageMenu } from "./MessageMenu"
 import { ClockPendingIcon, BlueTickIcon, ForwardedIcon } from "../../assets/svgs/chat_icons"
+import { useContactStore } from "../../store/useContactStore"
 
 interface MessageItemProps {
   message: store.DecodedMessage
@@ -46,7 +47,8 @@ export function MessageItem({
   const isSticker = !!content?.stickerMessage
   const isPending = (message as any).isPending || false
   const [senderName, setSenderName] = useState("~ " + message.Info.PushName || "Unknown")
-
+  const [senderColor, setSenderColor] = useState<string | undefined>(undefined)
+  const getContactColor = useContactStore(state => state.getContactColor)
   // Helper function to render caption with markdown
   const renderCaption = (caption: string | undefined) => {
     if (!caption) return null
@@ -109,8 +111,13 @@ export function MessageItem({
           }
         })
         .catch(() => {})
+      getContactColor(message.Info.Sender)
+        .then((color: string) => {
+          setSenderColor(color)
+        })
+        .catch(() => {})
     }
-  }, [message.Info.Sender, chatId, isFromMe])
+  }, [message.Info.Sender, chatId, isFromMe, getContactColor])
 
   const contextInfo =
     content?.extendedTextMessage?.contextInfo ||
@@ -124,7 +131,7 @@ export function MessageItem({
     if (!content) return <span className="italic opacity-50">Empty Message</span>
     else if (content.conversation || content.extendedTextMessage?.text) {
       const htmlContent = content.conversation || content.extendedTextMessage?.text
-      return <div dangerouslySetInnerHTML={{ __html: htmlContent }} />
+      return <div className="pr-5" dangerouslySetInnerHTML={{ __html: htmlContent }} />
     } else if (content.imageMessage)
       return (
         <div className="flex flex-col">
@@ -253,7 +260,9 @@ export function MessageItem({
           />
 
           {!isFromMe && chatId.endsWith("@g.us") && (
-            <div className="text-[11px] font-semibold text-blue-500 mb-0.5">{senderName}</div>
+            <div className="text-[11px] font-semibold mb-0.5" style={{ color: senderColor }}>
+              {senderName}
+            </div>
           )}
           {message.forwarded && (
             <div className="text-[10px] flex gap-1 italic items-center opacity-60 mb-1">
@@ -266,7 +275,7 @@ export function MessageItem({
           )}
           <div className="text-sm break-words whitespace-pre-wrap">{renderContent()}</div>
           <div className="text-[10px] text-right opacity-50 mt-1 flex items-center justify-end gap-1">
-            {message.edited && <span className="text-[9px] opacity-60">edited</span>}
+            {message.edited && <span>Edited</span>}
             <span>
               {new Date(message.Info.Timestamp).toLocaleTimeString([], {
                 hour: "2-digit",

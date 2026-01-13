@@ -1,4 +1,4 @@
-module github.com/lugvitc/whats4linux/systray
+module github.com/lugvitc/whats4linux/whats4linux_tray
 
 go 1.25.5
 
