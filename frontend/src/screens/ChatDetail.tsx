@@ -4,6 +4,7 @@ import {
   FetchMessagesPaged,
   SendChatPresence,
   GetGroupInfo,
+  GetProfile,
 } from "../../wailsjs/go/api/Api"
 import { store } from "../../wailsjs/go/models"
 import { EventsOn } from "../../wailsjs/runtime/runtime"
@@ -77,7 +78,15 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
       if (chatType === "group") {
         try {
           const groupInfo = await GetGroupInfo(chatId)
-          setMentionableContacts(groupInfo.group_participants.map((p: any) => p.contact))
+          try {
+            const self = await GetProfile("")
+            const contacts = groupInfo.group_participants
+              .map((p: any) => p.contact)
+              .filter((c: any) => c && c.jid !== self.jid && c.raw_jid !== self.raw_jid)
+            setMentionableContacts(contacts)
+          } catch (err) {
+            setMentionableContacts(groupInfo.group_participants.map((p: any) => p.contact))
+          }
         } catch (error) {
           console.error("Failed to fetch group info:", error)
           setMentionableContacts([])
