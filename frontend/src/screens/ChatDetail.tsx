@@ -353,13 +353,12 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
             const mentionText = `@${name}`
             
             if (processedText.includes(mentionText)) {
-              const phoneNumber = mention.jid.replace(/[\s()\-+]/g, '')
-              const replacement = `@${phoneNumber}`
+              const userPart = mention.raw_jid.split('@')[0]
+              const replacement = `@${userPart}`
               
               processedText = processedText.replaceAll(mentionText, replacement)
               
-              const userJID = phoneNumber + "@s.whatsapp.net"
-              mentionsToSend.push(userJID)
+              mentionsToSend.push(mention.raw_jid)
             }
           }
         }

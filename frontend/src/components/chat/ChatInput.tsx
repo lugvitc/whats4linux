@@ -151,17 +151,14 @@ export function ChatInput({
     if (!inputText) return null
     if (selectedMentions.length === 0) return inputText
 
-    // Create a regex for all mentions
     const mentionNames = selectedMentions.map(m => {
        let name = m.full_name
        if (!name) {
           if (m.push_name) name = `~ ${m.push_name}`
           else name = m.short || m.jid
        }
-       // Escape regex special chars
-       return "@" + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    }).sort((a, b) => b.length - a.length) // Match longest first
-
+       return "@" + name
+    })
     if (mentionNames.length === 0) return inputText
 
     const pattern = new RegExp(`(${mentionNames.join('|')})`, 'g')
@@ -195,22 +192,6 @@ export function ChatInput({
           ).toLowerCase(),
         }))
         .filter((c: any) => c.name.includes(query))
-        .sort((a: any, b: any) => {
-          // prioritize contacts with full_name, then push_name, then short
-          const aHasFull = !!a.contact.full_name
-          const bHasFull = !!b.contact.full_name
-          if (aHasFull !== bHasFull) return aHasFull ? -1 : 1
-          const aHasPush = !!a.contact.push_name
-          const bHasPush = !!b.contact.push_name
-          if (aHasPush !== bHasPush) return aHasPush ? -1 : 1
-          const aHasShort = !!a.contact.short
-          const bHasShort = !!b.contact.short
-          if (aHasShort !== bHasShort) return aHasShort ? -1 : 1
-          // prefer those starting with query
-          const aStarts = a.name.startsWith(query) ? -1 : 0
-          const bStarts = b.name.startsWith(query) ? -1 : 0
-          return aStarts - bStarts
-        })
         .slice(0, 5)
 
       setMentionSuggestions(matches.map((m: any) => m.contact))
@@ -230,13 +211,11 @@ export function ChatInput({
       }
     }
     const newText = inputText.replace(/@\w*$/, `@${name} `)
-    // Simulate input change
     const fakeEvent = {
       target: { value: newText },
     } as React.ChangeEvent<HTMLTextAreaElement>
     onInputChange(fakeEvent)
     setShowSuggestions(false)
-    // Track the mention - pass the full contact to parent
     onMentionAdd(contact)
   }
 
@@ -284,13 +263,11 @@ export function ChatInput({
 
   useEffect(() => {
     const loadAvatars = async () => {
-      // Find contacts that need avatar loading (not in cache)
       const contactsToLoad = mentionSuggestions.filter(
         (contact) => !(contact.jid in avatarCacheRef.current)
       )
       
       if (contactsToLoad.length === 0) {
-        // All avatars already cached, just update state from cache
         const cached: Record<string, string> = {}
         for (const contact of mentionSuggestions) {
           cached[contact.jid] = avatarCacheRef.current[contact.jid] || ''
@@ -299,7 +276,6 @@ export function ChatInput({
         return
       }
 
-      // Mark contacts as loading
       setLoadingAvatars((prev) => {
         const next = { ...prev }
         for (const contact of contactsToLoad) {
@@ -311,10 +287,8 @@ export function ChatInput({
       // Load avatars for contacts not in cache
       for (const contact of contactsToLoad) {
         try {
-          // Convert international phone number format to WhatsApp JID
-          const phoneNumber = contact.jid.replace(/[\s()-]/g, '').replace(/^\+/, '')
-          const userJid = phoneNumber + '@s.whatsapp.net'
-          const avatar = await GetCachedAvatar(userJid, false)
+          const userJid = contact.raw_jid
+          const avatar = await (Api as any).GetCachedAvatar(userJid, false)
           avatarCacheRef.current[contact.jid] = avatar || ''
         } catch (err) {
           console.error("Failed to load avatar for", contact.jid, err)
