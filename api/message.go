@@ -217,7 +217,7 @@ func (a *Api) SendMessage(chatJID string, content MessageContent) (string, error
 				}
 			}
 		}
-		
+
 		log.Printf("Final mentioned JIDs to send: %v", mentionedJIDs)
 
 		// If we have mentions or quoted context, use ExtendedTextMessage
