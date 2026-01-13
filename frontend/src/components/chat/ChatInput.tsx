@@ -292,7 +292,7 @@ export function ChatInput({
       for (const contact of contactsToLoad) {
         try {
           const userJid = contact.raw_jid
-          const avatar = await (Api as any).GetCachedAvatar(userJid, false)
+          const avatar = await GetCachedAvatar(userJid, false)
           avatarCacheRef.current[contact.jid] = avatar || ''
         } catch (err) {
           console.error("Failed to load avatar for", contact.jid, err)
