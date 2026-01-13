@@ -1,7 +1,13 @@
 import React, { lazy, Suspense, useState, useRef, useEffect } from "react"
 import clsx from "clsx"
 import data from "@emoji-mart/data"
-import { EmojiIcon, AttachIcon, SendIcon, CloseIcon, UserAvatar } from "../../assets/svgs/chat_icons"
+import {
+  EmojiIcon,
+  AttachIcon,
+  SendIcon,
+  CloseIcon,
+  UserAvatar,
+} from "../../assets/svgs/chat_icons"
 import { store } from "../../../wailsjs/go/models"
 import { GetCachedAvatar } from "../../../wailsjs/go/api/Api"
 import { useContactStore } from "../../store/useContactStore"
@@ -178,7 +184,7 @@ export function ChatInput({
     const newText = inputText.replace(/@\w*$/, `@${name} `)
     // Simulate input change
     const fakeEvent = {
-      target: { value: newText }
+      target: { value: newText },
     } as React.ChangeEvent<HTMLTextAreaElement>
     onInputChange(fakeEvent)
     setShowSuggestions(false)
@@ -367,7 +373,7 @@ export function ChatInput({
               ref={suggestionsRef}
               className="absolute bottom-full left-0 right-0 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-50 max-h-40 overflow-y-auto"
             >
-              {mentionSuggestions.map((contact) => {
+              {mentionSuggestions.map(contact => {
                 const avatar = mentionAvatars[contact.jid]
                 return (
                   <div
@@ -376,9 +382,19 @@ export function ChatInput({
                     className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex items-center gap-2"
                   >
                     <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 overflow-hidden flex items-center justify-center shrink-0">
-                      {avatar ? <img src={avatar} alt={contact.full_name || contact.push_name || contact.short} className="w-full h-full object-cover" /> : <UserAvatar />}
+                      {avatar ? (
+                        <img
+                          src={avatar}
+                          alt={contact.full_name || contact.push_name || contact.short}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <UserAvatar />
+                      )}
                     </div>
-                    <span>{contact.full_name || contact.push_name || contact.short || contact.jid}</span>
+                    <span>
+                      {contact.full_name || contact.push_name || contact.short || contact.jid}
+                    </span>
                   </div>
                 )
               })}
