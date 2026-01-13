@@ -383,6 +383,20 @@ func (ms *MessageStore) ProcessMessageEvent(ctx context.Context, sd store.LIDSto
 	updateCanonicalJID(ctx, sd, &msg.Info.Chat)
 	updateCanonicalJID(ctx, sd, &msg.Info.Sender)
 
+	// Handle reactions
+	if msg.Message.GetReactionMessage() != nil {
+		reactionMsg := msg.Message.GetReactionMessage()
+		targetID := reactionMsg.GetKey().GetID()
+		reaction := reactionMsg.GetText()
+		senderJID := msg.Info.Sender.String()
+		err := ms.AddReactionToMessage(targetID, reaction, senderJID)
+		if err != nil {
+			log.Println("Failed to add reaction:", err)
+			return ""
+		}
+		return targetID
+	}
+
 	// Handle message edits
 	if protoMsg := msg.Message.GetProtocolMessage(); protoMsg != nil && protoMsg.GetType() == waE2E.ProtocolMessage_MESSAGE_EDIT {
 		targetID := protoMsg.GetKey().GetID()
@@ -436,15 +450,6 @@ func (ms *MessageStore) ProcessMessageEvent(ctx context.Context, sd store.LIDSto
 
 // InsertMessage inserts a new message into messages.db
 func (ms *MessageStore) InsertMessage(info *types.MessageInfo, msg *waE2E.Message, parsedHTML string) error {
-	// Handle reaction messages differently
-	if msg.GetReactionMessage() != nil {
-		reactionMsg := msg.GetReactionMessage()
-		targetID := reactionMsg.GetKey().GetID()
-		reaction := reactionMsg.GetText()
-		senderJID := info.Sender.String()
-		return ms.AddReactionToMessage(targetID, reaction, senderJID)
-	}
-
 	var (
 		text, fileName, replyToMessageID string
 		forwarded                        = false
