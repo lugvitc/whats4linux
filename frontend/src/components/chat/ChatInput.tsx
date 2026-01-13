@@ -1,4 +1,4 @@
-import React, { lazy, Suspense } from "react"
+import React, { lazy, Suspense, useState, useRef } from "react"
 import clsx from "clsx"
 import data from "@emoji-mart/data"
 import { EmojiIcon, AttachIcon, SendIcon, CloseIcon } from "../../assets/svgs/chat_icons"
@@ -16,6 +16,7 @@ interface ChatInputProps {
   emojiPickerRef: React.RefObject<HTMLDivElement | null>
   emojiButtonRef: React.RefObject<HTMLButtonElement | null>
   replyingTo: store.DecodedMessage | null
+  mentionableContacts: any[]
   onInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void
   onKeyDown: (e: React.KeyboardEvent) => void
   onPaste: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void
@@ -109,6 +110,7 @@ export function ChatInput({
   emojiPickerRef,
   emojiButtonRef,
   replyingTo,
+  mentionableContacts,
   onInputChange,
   onKeyDown,
   onPaste,
@@ -119,6 +121,66 @@ export function ChatInput({
   onToggleEmojiPicker,
   onCancelReply,
 }: ChatInputProps) {
+  const [mentionSuggestions, setMentionSuggestions] = useState<any[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const suggestionsRef = useRef<HTMLDivElement>(null)
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value
+    onInputChange(e)
+
+    // Check for mention trigger
+    const mentionMatch = value.match(/@(\w*)$/)
+    if (mentionMatch) {
+      const query = mentionMatch[1].toLowerCase()
+      const matches = mentionableContacts
+        .map((contact: any) => ({
+          contact,
+          name: (
+            (contact.full_name && contact.full_name) ||
+            (contact.push_name && contact.push_name) ||
+            contact.short ||
+            contact.jid ||
+            ""
+          ).toLowerCase(),
+        }))
+        .filter((c: any) => c.name.includes(query))
+        .sort((a: any, b: any) => {
+          // prioritize contacts with full_name, then push_name, then short
+          const aHasFull = !!a.contact.full_name
+          const bHasFull = !!b.contact.full_name
+          if (aHasFull !== bHasFull) return aHasFull ? -1 : 1
+          const aHasPush = !!a.contact.push_name
+          const bHasPush = !!b.contact.push_name
+          if (aHasPush !== bHasPush) return aHasPush ? -1 : 1
+          const aHasShort = !!a.contact.short
+          const bHasShort = !!b.contact.short
+          if (aHasShort !== bHasShort) return aHasShort ? -1 : 1
+          // prefer those starting with query
+          const aStarts = a.name.startsWith(query) ? -1 : 0
+          const bStarts = b.name.startsWith(query) ? -1 : 0
+          return aStarts - bStarts
+        })
+        .slice(0, 5)
+
+      setMentionSuggestions(matches.map((m: any) => m.contact))
+      setShowSuggestions(matches.length > 0)
+    } else {
+      setShowSuggestions(false)
+    }
+  }
+
+  const handleSuggestionClick = (contact: any) => {
+    const name = contact.full_name || contact.push_name || contact.short || contact.jid
+    const newText = inputText.replace(/@\w*$/, `@${name} `)
+    // Simulate input change
+    const fakeEvent = {
+      target: { value: newText }
+    } as React.ChangeEvent<HTMLTextAreaElement>
+    onInputChange(fakeEvent)
+    setShowSuggestions(false)
+  }
+
   const hasContent = inputText.trim() || pastedImage || selectedFile
 
   const handleEmojiSelect = (emoji: any) => {
@@ -211,11 +273,11 @@ export function ChatInput({
         />
 
         {/* Text Input */}
-        <div className="flex-1 bg-light-bg dark:bg-dark-tertiary rounded-full">
+        <div className="flex-1 bg-light-bg dark:bg-dark-tertiary rounded-full relative">
           <textarea
             ref={textareaRef}
             value={inputText}
-            onChange={onInputChange}
+            onChange={handleInputChange}
             onKeyDown={onKeyDown}
             onPaste={onPaste}
             placeholder="Type a message"
@@ -226,6 +288,23 @@ export function ChatInput({
             )}
             rows={1}
           />
+          {/* Mention Suggestions */}
+          {showSuggestions && (
+            <div
+              ref={suggestionsRef}
+              className="absolute bottom-full left-0 right-0 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-50 max-h-40 overflow-y-auto"
+            >
+              {mentionSuggestions.map((contact) => (
+                <div
+                  key={contact.jid}
+                  onClick={() => handleSuggestionClick(contact)}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                >
+                  {contact.full_name || contact.push_name || contact.short || contact.jid}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Send Button */}

@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react"
-import { SendMessage, FetchMessagesPaged, SendChatPresence } from "../../wailsjs/go/api/Api"
+import { SendMessage, FetchMessagesPaged, SendChatPresence, GetGroupInfo } from "../../wailsjs/go/api/Api"
 import { store } from "../../wailsjs/go/models"
 import { EventsOn } from "../../wailsjs/runtime/runtime"
 import { useMessageStore, useUIStore, useChatStore } from "../store"
@@ -43,6 +43,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
   const [replyingTo, setReplyingTo] = useState<store.DecodedMessage | null>(null)
   const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null)
 
+  const [mentionableContacts, setMentionableContacts] = useState<any[]>([])
   const [hasMore, setHasMore] = useState(true)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [initialLoad, setInitialLoad] = useState(true)
@@ -62,10 +63,25 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
   const easeShowRef = useRef(getEase("DropDown", "open"))
   const easeHideRef = useRef(getEase("DropDown", "close"))
 
+  const currentChat = chatsById.get(chatId)
+  const chatType = currentChat?.type || "contact"
+
   useEffect(() => {
-    easeShowRef.current = getEase("DropDown", "open")
-    easeHideRef.current = getEase("DropDown", "close")
-  })
+    const loadMentionableContacts = async () => {
+      if (chatType === "group") {
+        try {
+          const groupInfo = await GetGroupInfo(chatId)
+          setMentionableContacts(groupInfo.group_participants.map((p: any) => p.contact))
+        } catch (error) {
+          console.error("Failed to fetch group info:", error)
+          setMentionableContacts([])
+        }
+      } else {
+        setMentionableContacts([])
+      }
+    }
+    loadMentionableContacts()
+  }, [chatId, chatType])
 
   const scrollToBottom = useCallback((instant = false) => {
     requestAnimationFrame(() => {
@@ -360,9 +376,6 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
     }
   }, [isAtBottom])
 
-  const currentChat = chatsById.get(chatId)
-  const chatType = currentChat?.type || "contact"
-
   return (
     <div className="flex h-full">
       <div className="flex flex-col flex-1">
@@ -422,6 +435,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
           emojiPickerRef={emojiPickerRef}
           emojiButtonRef={emojiButtonRef}
           replyingTo={replyingTo}
+          mentionableContacts={mentionableContacts}
           onInputChange={handleInputChange}
           onKeyDown={e =>
             e.key === "Enter" && !e.shiftKey && (e.preventDefault(), handleSendMessage())
