@@ -152,12 +152,12 @@ export function ChatInput({
     if (selectedMentions.length === 0) return inputText
 
     const mentionNames = selectedMentions.map(m => {
-       let name = m.full_name
-       if (!name) {
-          if (m.push_name) name = `~ ${m.push_name}`
-          else name = m.short || m.jid
-       }
-       return "@" + name
+      let name = m.full_name
+      if (!name) {
+        if (m.push_name) name = `~ ${m.push_name}`
+        else name = m.short || m.jid
+      }
+      return "@" + name
     })
     if (mentionNames.length === 0) return inputText
 
@@ -280,7 +280,7 @@ export function ChatInput({
         return
       }
 
-      setLoadingAvatars((prev) => {
+      setLoadingAvatars(prev => {
         const next = { ...prev }
         for (const contact of contactsToLoad) {
           next[contact.jid] = true
@@ -293,7 +293,7 @@ export function ChatInput({
         try {
           const userJid = contact.raw_jid
           const avatar = await (Api as any).GetCachedAvatar(userJid, false)
-          avatarCacheRef.current[contact.jid] = avatar || ''
+          avatarCacheRef.current[contact.jid] = avatar || ""
         } catch (err) {
           console.error("Failed to load avatar for", contact.jid, err)
           avatarCacheRef.current[contact.jid] = ""

@@ -355,11 +355,11 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
             const mentionText = `@${name}`
 
             if (processedText.includes(mentionText)) {
-              const userPart = mention.raw_jid.split('@')[0]
+              const userPart = mention.raw_jid.split("@")[0]
               const replacement = `@${userPart}`
-              
+
               processedText = processedText.replaceAll(mentionText, replacement)
-              
+
               mentionsToSend.push(mention.raw_jid)
             }
           }
