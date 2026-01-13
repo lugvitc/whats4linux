@@ -126,6 +126,8 @@ export function ChatInput({
   const [mentionSuggestions, setMentionSuggestions] = useState<any[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [mentionAvatars, setMentionAvatars] = useState<Record<string, string>>({})
+  const [loadingAvatars, setLoadingAvatars] = useState<Record<string, boolean>>({})
+  const avatarCacheRef = useRef<Record<string, string>>({})
   const suggestionsRef = useRef<HTMLDivElement>(null)
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -228,17 +230,61 @@ export function ChatInput({
 
   useEffect(() => {
     const loadAvatars = async () => {
-      const newAvatars: Record<string, string> = {}
-      for (const contact of mentionSuggestions) {
+      // Find contacts that need avatar loading (not in cache)
+      const contactsToLoad = mentionSuggestions.filter(
+        (contact) => !(contact.jid in avatarCacheRef.current)
+      )
+      
+      if (contactsToLoad.length === 0) {
+        // All avatars already cached, just update state from cache
+        const cached: Record<string, string> = {}
+        for (const contact of mentionSuggestions) {
+          cached[contact.jid] = avatarCacheRef.current[contact.jid] || ''
+        }
+        setMentionAvatars(cached)
+        return
+      }
+
+      // Mark contacts as loading
+      setLoadingAvatars((prev) => {
+        const next = { ...prev }
+        for (const contact of contactsToLoad) {
+          next[contact.jid] = true
+        }
+        return next
+      })
+
+      // Load avatars for contacts not in cache
+      for (const contact of contactsToLoad) {
         try {
-          const avatar = await GetCachedAvatar(contact.jid, false)
-          newAvatars[contact.jid] = avatar
+          // Convert international phone number format to WhatsApp JID
+          const phoneNumber = contact.jid.replace(/[\s()-]/g, '').replace(/^\+/, '')
+          const userJid = phoneNumber + '@s.whatsapp.net'
+          const avatar = await GetCachedAvatar(userJid, false)
+          avatarCacheRef.current[contact.jid] = avatar || ''
         } catch (err) {
           console.error("Failed to load avatar for", contact.jid, err)
+          avatarCacheRef.current[contact.jid] = ''
         }
       }
-      setMentionAvatars(newAvatars)
+
+      // Clear loading state
+      setLoadingAvatars((prev) => {
+        const next = { ...prev }
+        for (const contact of contactsToLoad) {
+          next[contact.jid] = false
+        }
+        return next
+      })
+
+      // Update avatars state from cache
+      const updated: Record<string, string> = {}
+      for (const contact of mentionSuggestions) {
+        updated[contact.jid] = avatarCacheRef.current[contact.jid] || ''
+      }
+      setMentionAvatars(updated)
     }
+    
     if (mentionSuggestions.length > 0) {
       loadAvatars()
     } else {
@@ -369,6 +415,7 @@ export function ChatInput({
             >
               {mentionSuggestions.map((contact) => {
                 const avatar = mentionAvatars[contact.jid]
+                const isLoading = loadingAvatars[contact.jid]
                 return (
                   <div
                     key={contact.jid}
@@ -376,7 +423,13 @@ export function ChatInput({
                     className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex items-center gap-2"
                   >
                     <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 overflow-hidden flex items-center justify-center shrink-0">
-                      {avatar ? <img src={avatar} alt={contact.full_name || contact.push_name || contact.short} className="w-full h-full object-cover" /> : <UserAvatar />}
+                      {isLoading ? (
+                        <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                      ) : avatar ? (
+                        <img src={avatar} alt={contact.full_name || contact.push_name || contact.short} className="w-full h-full object-cover" />
+                      ) : (
+                        <UserAvatar />
+                      )}
                     </div>
                     <span>{contact.full_name || contact.push_name || contact.short || contact.jid}</span>
                   </div>
