@@ -161,12 +161,16 @@ export function ChatInput({
     })
     if (mentionNames.length === 0) return inputText
 
-    const pattern = new RegExp(`(${mentionNames.join('|')})`, 'g')
+    const pattern = new RegExp(`(${mentionNames.join("|")})`, "g")
     const parts = inputText.split(pattern)
 
     return parts.map((part, index) => {
       if (mentionNames.includes(part)) {
-        return <span key={index} className="text-green-500">{part}</span>
+        return (
+          <span key={index} className="text-green-500">
+            {part}
+          </span>
+        )
       }
       return <span key={index}>{part}</span>
     })
@@ -264,13 +268,13 @@ export function ChatInput({
   useEffect(() => {
     const loadAvatars = async () => {
       const contactsToLoad = mentionSuggestions.filter(
-        (contact) => !(contact.jid in avatarCacheRef.current)
+        contact => !(contact.jid in avatarCacheRef.current),
       )
-      
+
       if (contactsToLoad.length === 0) {
         const cached: Record<string, string> = {}
         for (const contact of mentionSuggestions) {
-          cached[contact.jid] = avatarCacheRef.current[contact.jid] || ''
+          cached[contact.jid] = avatarCacheRef.current[contact.jid] || ""
         }
         setMentionAvatars(cached)
         return
@@ -292,12 +296,12 @@ export function ChatInput({
           avatarCacheRef.current[contact.jid] = avatar || ''
         } catch (err) {
           console.error("Failed to load avatar for", contact.jid, err)
-          avatarCacheRef.current[contact.jid] = ''
+          avatarCacheRef.current[contact.jid] = ""
         }
       }
 
       // Clear loading state
-      setLoadingAvatars((prev) => {
+      setLoadingAvatars(prev => {
         const next = { ...prev }
         for (const contact of contactsToLoad) {
           next[contact.jid] = false
@@ -308,11 +312,11 @@ export function ChatInput({
       // Update avatars state from cache
       const updated: Record<string, string> = {}
       for (const contact of mentionSuggestions) {
-        updated[contact.jid] = avatarCacheRef.current[contact.jid] || ''
+        updated[contact.jid] = avatarCacheRef.current[contact.jid] || ""
       }
       setMentionAvatars(updated)
     }
-    
+
     if (mentionSuggestions.length > 0) {
       loadAvatars()
     } else {
@@ -425,9 +429,9 @@ export function ChatInput({
             ref={backdropRef}
             className={clsx(
               "absolute inset-0 w-full p-2 max-h-32 overflow-y-auto whitespace-pre-wrap break-words pointer-events-none",
-              "text-gray-900 dark:text-white"
+              "text-gray-900 dark:text-white",
             )}
-            style={{ fontFamily: 'inherit', fontSize: 'inherit', lineHeight: 'inherit' }}
+            style={{ fontFamily: "inherit", fontSize: "inherit", lineHeight: "inherit" }}
             aria-hidden="true"
           >
             {renderHighlightedText()}
@@ -466,7 +470,11 @@ export function ChatInput({
                       {isLoading ? (
                         <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
                       ) : avatar ? (
-                        <img src={avatar} alt={contact.full_name || contact.push_name || contact.short} className="w-full h-full object-cover" />
+                        <img
+                          src={avatar}
+                          alt={contact.full_name || contact.push_name || contact.short}
+                          className="w-full h-full object-cover"
+                        />
                       ) : (
                         <UserAvatar />
                       )}
