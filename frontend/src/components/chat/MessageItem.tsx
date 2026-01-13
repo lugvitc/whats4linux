@@ -3,6 +3,7 @@ import { store } from "../../../wailsjs/go/models"
 import { DownloadImageToFile, GetContact } from "../../../wailsjs/go/api/Api"
 import { MediaContent } from "./MediaContent"
 import { QuotedMessage } from "./QuotedMessage"
+import { ReactionBubble } from "./Reactions"
 import clsx from "clsx"
 import { MessageMenu } from "./MessageMenu"
 import { ClockPendingIcon, BlueTickIcon, ForwardedIcon } from "../../assets/svgs/chat_icons"
@@ -49,6 +50,8 @@ export function MessageItem({
   const [senderName, setSenderName] = useState("~ " + message.Info.PushName || "Unknown")
   const [senderColor, setSenderColor] = useState<string | undefined>(undefined)
   const getContactColor = useContactStore(state => state.getContactColor)
+  const [Reactions, setReactions] = useState(message.reactions ?? [])
+
   // Helper function to render caption with markdown
   const renderCaption = (caption: string | undefined) => {
     if (!caption) return null
@@ -118,6 +121,12 @@ export function MessageItem({
         .catch(() => {})
     }
   }, [message.Info.Sender, chatId, isFromMe, getContactColor])
+
+
+  useEffect(() => {
+    setReactions(message.reactions ?? [])
+  }, [message.Info.ID, message.reactions])
+
 
   const contextInfo =
     content?.extendedTextMessage?.contextInfo ||
@@ -284,6 +293,19 @@ export function MessageItem({
             </span>
             {isFromMe && (isPending ? <ClockPendingIcon /> : <BlueTickIcon />)}
           </div>
+          
+          {/* Reactions */}
+          {Reactions && Reactions.length > 0 && (
+          <div
+            className={clsx(
+              "absolute -bottom-3 z-9999",
+              isFromMe ? "right-2" : "left-2",
+            )}
+          >
+              <ReactionBubble reactions={Reactions} isFromMe={isFromMe} />
+            </div>
+          )}
+
         </div>
       </div>
     </>
