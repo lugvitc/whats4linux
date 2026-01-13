@@ -1,4 +1,4 @@
-import  { useMemo } from "react"
+import { useMemo } from "react"
 import { store } from "../../../wailsjs/go/models"
 import clsx from "clsx"
 
@@ -40,24 +40,12 @@ export function ReactionBubble({ reactions, isFromMe }: ReactionsProps) {
   }, [reactions])
 
   return (
-    <div
-      className={clsx(
-        "mt-1",
-        isFromMe ? "flex justify-end" : "flex justify-start",
-      )}
-    >
-      <div
-        className="inline-flex items-center gap-2 px-2 py-1 rounded-full text-xs shadow-sm bg-white dark:bg-dark-tertiary"
-      >
+    <div className={clsx("mt-1", isFromMe ? "flex justify-end" : "flex justify-start")}>
+      <div className="inline-flex items-center gap-2 px-2 py-1 rounded-full text-xs shadow-sm bg-white dark:bg-dark-tertiary">
         <div className="flex items-center gap-1">
           {groupedReactions.map(reaction => (
-            <span
-              key={reaction.emoji}
-              className="inline-flex items-center gap-0.5"
-            >
-              <span className="text-sm leading-none">
-                {reaction.emoji}
-              </span>
+            <span key={reaction.emoji} className="inline-flex items-center gap-0.5">
+              <span className="text-sm leading-none">{reaction.emoji}</span>
             </span>
           ))}
         </div>

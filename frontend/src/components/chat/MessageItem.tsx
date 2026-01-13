@@ -122,11 +122,9 @@ export function MessageItem({
     }
   }, [message.Info.Sender, chatId, isFromMe, getContactColor])
 
-
   useEffect(() => {
     setReactions(message.reactions ?? [])
   }, [message.Info.ID, message.reactions])
-
 
   const contextInfo =
     content?.extendedTextMessage?.contextInfo ||
@@ -293,19 +291,13 @@ export function MessageItem({
             </span>
             {isFromMe && (isPending ? <ClockPendingIcon /> : <BlueTickIcon />)}
           </div>
-          
+
           {/* Reactions */}
           {Reactions && Reactions.length > 0 && (
-          <div
-            className={clsx(
-              "absolute -bottom-3 z-9999",
-              isFromMe ? "right-2" : "left-2",
-            )}
-          >
+            <div className={clsx("absolute -bottom-3 z-9999", isFromMe ? "right-2" : "left-2")}>
               <ReactionBubble reactions={Reactions} isFromMe={isFromMe} />
             </div>
           )}
-
         </div>
       </div>
     </>
