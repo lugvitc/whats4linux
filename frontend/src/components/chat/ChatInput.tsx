@@ -1,7 +1,13 @@
 import React, { lazy, Suspense, useState, useRef, useEffect } from "react"
 import clsx from "clsx"
 import data from "@emoji-mart/data"
-import { EmojiIcon, AttachIcon, SendIcon, CloseIcon, UserAvatar } from "../../assets/svgs/chat_icons"
+import {
+  EmojiIcon,
+  AttachIcon,
+  SendIcon,
+  CloseIcon,
+  UserAvatar,
+} from "../../assets/svgs/chat_icons"
 import { store } from "../../../wailsjs/go/models"
 import { GetCachedAvatar } from "../../../wailsjs/go/api/Api"
 import { useContactStore } from "../../store/useContactStore"
@@ -28,6 +34,8 @@ interface ChatInputProps {
   onEmojiClick: (emoji: string) => void
   onToggleEmojiPicker: () => void
   onCancelReply: () => void
+  onMentionAdd: (contact: any) => void
+  selectedMentions: any[]
 }
 
 const FILE_TYPE_ICONS = {
@@ -122,6 +130,8 @@ export function ChatInput({
   onEmojiClick,
   onToggleEmojiPicker,
   onCancelReply,
+  onMentionAdd,
+  selectedMentions,
 }: ChatInputProps) {
   const [mentionSuggestions, setMentionSuggestions] = useState<any[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -129,6 +139,41 @@ export function ChatInput({
   const [loadingAvatars, setLoadingAvatars] = useState<Record<string, boolean>>({})
   const avatarCacheRef = useRef<Record<string, string>>({})
   const suggestionsRef = useRef<HTMLDivElement>(null)
+  const backdropRef = useRef<HTMLDivElement>(null)
+
+  const handleScroll = () => {
+    if (textareaRef.current && backdropRef.current) {
+      backdropRef.current.scrollTop = textareaRef.current.scrollTop
+    }
+  }
+
+  const renderHighlightedText = () => {
+    if (!inputText) return null
+    if (selectedMentions.length === 0) return inputText
+
+    // Create a regex for all mentions
+    const mentionNames = selectedMentions.map(m => {
+       let name = m.full_name
+       if (!name) {
+          if (m.push_name) name = `~ ${m.push_name}`
+          else name = m.short || m.jid
+       }
+       // Escape regex special chars
+       return "@" + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    }).sort((a, b) => b.length - a.length) // Match longest first
+
+    if (mentionNames.length === 0) return inputText
+
+    const pattern = new RegExp(`(${mentionNames.join('|')})`, 'g')
+    const parts = inputText.split(pattern)
+
+    return parts.map((part, index) => {
+      if (mentionNames.includes(part)) {
+        return <span key={index} className="text-green-500">{part}</span>
+      }
+      return <span key={index}>{part}</span>
+    })
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value
@@ -176,14 +221,23 @@ export function ChatInput({
   }
 
   const handleSuggestionClick = (contact: any) => {
-    const name = contact.full_name || contact.push_name || contact.short || contact.jid
+    let name = contact.full_name
+    if (!name) {
+      if (contact.push_name) {
+        name = `~ ${contact.push_name}`
+      } else {
+        name = contact.short || contact.jid
+      }
+    }
     const newText = inputText.replace(/@\w*$/, `@${name} `)
     // Simulate input change
     const fakeEvent = {
-      target: { value: newText }
+      target: { value: newText },
     } as React.ChangeEvent<HTMLTextAreaElement>
     onInputChange(fakeEvent)
     setShowSuggestions(false)
+    // Track the mention - pass the full contact to parent
+    onMentionAdd(contact)
   }
 
   const hasContent = inputText.trim() || pastedImage || selectedFile
@@ -393,16 +447,28 @@ export function ChatInput({
 
         {/* Text Input */}
         <div className="flex-1 bg-light-bg dark:bg-dark-tertiary rounded-full relative">
+          <div
+            ref={backdropRef}
+            className={clsx(
+              "absolute inset-0 w-full p-2 max-h-32 overflow-y-auto whitespace-pre-wrap break-words pointer-events-none",
+              "text-gray-900 dark:text-white"
+            )}
+            style={{ fontFamily: 'inherit', fontSize: 'inherit', lineHeight: 'inherit' }}
+            aria-hidden="true"
+          >
+            {renderHighlightedText()}
+          </div>
           <textarea
             ref={textareaRef}
             value={inputText}
             onChange={handleInputChange}
             onKeyDown={onKeyDown}
             onPaste={onPaste}
+            onScroll={handleScroll}
             placeholder="Type a message"
             className={clsx(
-              "w-full p-2 bg-transparent resize-none outline-none max-h-32",
-              "text-gray-900 dark:text-white caret-green",
+              "relative z-10 w-full p-2 bg-transparent resize-none outline-none max-h-32",
+              "text-transparent caret-green",
               "placeholder:text-gray-500",
             )}
             rows={1}
@@ -413,7 +479,7 @@ export function ChatInput({
               ref={suggestionsRef}
               className="absolute bottom-full left-0 right-0 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-50 max-h-40 overflow-y-auto"
             >
-              {mentionSuggestions.map((contact) => {
+              {mentionSuggestions.map(contact => {
                 const avatar = mentionAvatars[contact.jid]
                 const isLoading = loadingAvatars[contact.jid]
                 return (
@@ -431,7 +497,9 @@ export function ChatInput({
                         <UserAvatar />
                       )}
                     </div>
-                    <span>{contact.full_name || contact.push_name || contact.short || contact.jid}</span>
+                    <span>
+                      {contact.full_name || contact.push_name || contact.short || contact.jid}
+                    </span>
                   </div>
                 )
               })}
