@@ -200,25 +200,7 @@ func (a *Api) SendMessage(chatJID string, content MessageContent) (string, error
 			return "", err
 		}
 
-		var mentionedJIDs []string
-		if len(content.Mentions) > 0 {
-			log.Printf("Processing %d mentions: %v", len(content.Mentions), content.Mentions)
-			for _, mention := range content.Mentions {
-				phoneNumber := ""
-				for _, r := range mention {
-					if r >= '0' && r <= '9' {
-						phoneNumber += string(r)
-					}
-				}
-				if phoneNumber != "" {
-					userJID := phoneNumber + "@s.whatsapp.net"
-					log.Printf("Converted mention to JID: %s", userJID)
-					mentionedJIDs = append(mentionedJIDs, userJID)
-				}
-			}
-		}
-
-		log.Printf("Final mentioned JIDs to send: %v", mentionedJIDs)
+		mentionedJIDs := content.Mentions
 
 		// If we have mentions or quoted context, use ExtendedTextMessage
 		if len(mentionedJIDs) > 0 || contextInfo != nil {
