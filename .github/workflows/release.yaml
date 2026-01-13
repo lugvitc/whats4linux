@@ -53,7 +53,7 @@ jobs:
         if: matrix.webkit
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev
 
       - name: Setup Go
         uses: actions/setup-go@v5
