@@ -172,17 +172,19 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
     const newValue = e.target.value
     setInputText(newValue)
     if (selectedMentions.length > 0) {
-      setSelectedMentions(prev => prev.filter(mention => {
-        let name = mention.full_name
-        if (!name) {
-          if (mention.push_name) {
-            name = `~ ${mention.push_name}`
-          } else {
-            name = mention.short || mention.jid
+      setSelectedMentions(prev =>
+        prev.filter(mention => {
+          let name = mention.full_name
+          if (!name) {
+            if (mention.push_name) {
+              name = `~ ${mention.push_name}`
+            } else {
+              name = mention.short || mention.jid
+            }
           }
-        }
-        return newValue.includes(`@${name}`)
-      }))
+          return newValue.includes(`@${name}`)
+        }),
+      )
     }
 
     if (!isComposingRef.current) {
@@ -329,16 +331,16 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
       } else {
         let processedText = textToSend
         const mentionsToSend: string[] = []
-        // mentions process here 
+        // mentions process here
         if (selectedMentions.length > 0) {
           const sortedMentions = [...selectedMentions].sort((a, b) => {
-             let nameA = a.full_name
-             if (!nameA) nameA = a.push_name ? `~ ${a.push_name}` : (a.short || a.jid)
-             
-             let nameB = b.full_name
-             if (!nameB) nameB = b.push_name ? `~ ${b.push_name}` : (b.short || b.jid)
-             
-             return nameB.length - nameA.length
+            let nameA = a.full_name
+            if (!nameA) nameA = a.push_name ? `~ ${a.push_name}` : a.short || a.jid
+
+            let nameB = b.full_name
+            if (!nameB) nameB = b.push_name ? `~ ${b.push_name}` : b.short || b.jid
+
+            return nameB.length - nameA.length
           })
 
           for (const mention of sortedMentions) {
@@ -351,20 +353,25 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
               }
             }
             const mentionText = `@${name}`
-            
+
             if (processedText.includes(mentionText)) {
-              const phoneNumber = mention.jid.replace(/[\s()\-+]/g, '')
+              const phoneNumber = mention.jid.replace(/[\s()\-+]/g, "")
               const replacement = `@${phoneNumber}`
-              
+
               processedText = processedText.replaceAll(mentionText, replacement)
-              
+
               const userJID = phoneNumber + "@s.whatsapp.net"
               mentionsToSend.push(userJID)
             }
           }
         }
 
-        await SendMessage(chatId, { type: "text", text: processedText, quotedMessageId, mentions: mentionsToSend })
+        await SendMessage(chatId, {
+          type: "text",
+          text: processedText,
+          quotedMessageId,
+          mentions: mentionsToSend,
+        })
       }
     } catch (err) {
       console.error("Failed to send:", err)
@@ -529,7 +536,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
           }}
           onToggleEmojiPicker={() => setShowEmojiPicker(!showEmojiPicker)}
           onCancelReply={() => setReplyingTo(null)}
-          onMentionAdd={(contact) => setSelectedMentions(prev => [...prev, contact])}
+          onMentionAdd={contact => setSelectedMentions(prev => [...prev, contact])}
           selectedMentions={selectedMentions}
         />
       </div>
