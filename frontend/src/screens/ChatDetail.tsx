@@ -82,7 +82,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
             const self = await GetProfile("")
             const contacts = groupInfo.group_participants
               .map((p: any) => p.contact)
-              .filter((c: any) => c && c.jid !== self.jid && c.raw_jid !== self.raw_jid)
+              .filter((c: any) => c && c.phno !== self.phno && c.raw_jid !== self.raw_jid)
             setMentionableContacts(contacts)
           } catch (err) {
             setMentionableContacts(groupInfo.group_participants.map((p: any) => p.contact))
@@ -188,7 +188,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
             if (mention.push_name) {
               name = `~ ${mention.push_name}`
             } else {
-              name = mention.short || mention.jid
+              name = mention.short || mention.phno
             }
           }
           return newValue.includes(`@${name}`)
@@ -344,10 +344,10 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
         if (selectedMentions.length > 0) {
           const sortedMentions = [...selectedMentions].sort((a, b) => {
             let nameA = a.full_name
-            if (!nameA) nameA = a.push_name ? `~ ${a.push_name}` : a.short || a.jid
+            if (!nameA) nameA = a.push_name ? `~ ${a.push_name}` : a.short || a.phno
 
             let nameB = b.full_name
-            if (!nameB) nameB = b.push_name ? `~ ${b.push_name}` : b.short || b.jid
+            if (!nameB) nameB = b.push_name ? `~ ${b.push_name}` : b.short || b.phno
 
             return nameB.length - nameA.length
           })
@@ -358,7 +358,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
               if (mention.push_name) {
                 name = `~ ${mention.push_name}`
               } else {
-                name = mention.short || mention.jid
+                name = mention.short || mention.phno
               }
             }
             const mentionText = `@${name}`

@@ -155,7 +155,7 @@ export function ChatInput({
       let name = m.full_name
       if (!name) {
         if (m.push_name) name = `~ ${m.push_name}`
-        else name = m.short || m.jid
+        else name = m.short || m.phno
       }
       return "@" + name
     })
@@ -191,7 +191,7 @@ export function ChatInput({
             (contact.full_name && contact.full_name) ||
             (contact.push_name && contact.push_name) ||
             contact.short ||
-            contact.jid ||
+            contact.phno ||
             ""
           ).toLowerCase(),
         }))
@@ -207,11 +207,11 @@ export function ChatInput({
 
   const handleSuggestionClick = (contact: any) => {
     let name = contact.full_name
-    if (!name) {
+      if (!name) {
       if (contact.push_name) {
         name = `~ ${contact.push_name}`
       } else {
-        name = contact.short || contact.jid
+        name = contact.short || contact.phno
       }
     }
     const newText = inputText.replace(/@\w*$/, `@${name} `)
@@ -268,22 +268,22 @@ export function ChatInput({
   useEffect(() => {
     const loadAvatars = async () => {
       const contactsToLoad = mentionSuggestions.filter(
-        contact => !(contact.jid in avatarCacheRef.current),
+        contact => !(contact.phno in avatarCacheRef.current),
       )
 
       if (contactsToLoad.length === 0) {
         const cached: Record<string, string> = {}
         for (const contact of mentionSuggestions) {
-          cached[contact.jid] = avatarCacheRef.current[contact.jid] || ""
+          cached[contact.phno] = avatarCacheRef.current[contact.phno] || ""
         }
         setMentionAvatars(cached)
         return
       }
 
-      setLoadingAvatars(prev => {
+        setLoadingAvatars(prev => {
         const next = { ...prev }
         for (const contact of contactsToLoad) {
-          next[contact.jid] = true
+          next[contact.phno] = true
         }
         return next
       })
@@ -293,18 +293,18 @@ export function ChatInput({
         try {
           const userJid = contact.raw_jid
           const avatar = await GetCachedAvatar(userJid, false)
-          avatarCacheRef.current[contact.jid] = avatar || ""
+          avatarCacheRef.current[contact.phno] = avatar || ""
         } catch (err) {
-          console.error("Failed to load avatar for", contact.jid, err)
-          avatarCacheRef.current[contact.jid] = ""
+          console.error("Failed to load avatar for", contact.phno, err)
+          avatarCacheRef.current[contact.phno] = ""
         }
       }
 
       // Clear loading state
-      setLoadingAvatars(prev => {
+        setLoadingAvatars(prev => {
         const next = { ...prev }
         for (const contact of contactsToLoad) {
-          next[contact.jid] = false
+          next[contact.phno] = false
         }
         return next
       })
@@ -312,7 +312,7 @@ export function ChatInput({
       // Update avatars state from cache
       const updated: Record<string, string> = {}
       for (const contact of mentionSuggestions) {
-        updated[contact.jid] = avatarCacheRef.current[contact.jid] || ""
+        updated[contact.phno] = avatarCacheRef.current[contact.phno] || ""
       }
       setMentionAvatars(updated)
     }
@@ -458,11 +458,11 @@ export function ChatInput({
               className="absolute bottom-full left-0 right-0 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-50 max-h-40 overflow-y-auto"
             >
               {mentionSuggestions.map(contact => {
-                const avatar = mentionAvatars[contact.jid]
-                const isLoading = loadingAvatars[contact.jid]
+                const avatar = mentionAvatars[contact.phno]
+                const isLoading = loadingAvatars[contact.phno]
                 return (
                   <div
-                    key={contact.jid}
+                    key={contact.phno}
                     onClick={() => handleSuggestionClick(contact)}
                     className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex items-center gap-2"
                   >
@@ -480,7 +480,7 @@ export function ChatInput({
                       )}
                     </div>
                     <span>
-                      {contact.full_name || contact.push_name || contact.short || contact.jid}
+                      {contact.full_name || contact.push_name || contact.short || contact.phno}
                     </span>
                   </div>
                 )
