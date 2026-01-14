@@ -34,7 +34,6 @@ func (a *Api) GetChatList() ([]ChatElement, error) {
 				return nil, err
 			}
 
-
 			fc = Contact{
 				JID:     cm.JID.String(),
 				Short:      contact.FirstName,

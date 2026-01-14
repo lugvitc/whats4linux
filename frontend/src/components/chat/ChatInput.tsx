@@ -207,7 +207,7 @@ export function ChatInput({
 
   const handleSuggestionClick = (contact: any) => {
     let name = contact.full_name
-      if (!name) {
+    if (!name) {
       if (contact.push_name) {
         name = `~ ${contact.push_name}`
       } else {
@@ -280,7 +280,7 @@ export function ChatInput({
         return
       }
 
-        setLoadingAvatars(prev => {
+      setLoadingAvatars(prev => {
         const next = { ...prev }
         for (const contact of contactsToLoad) {
           next[contact.phno] = true
@@ -301,7 +301,7 @@ export function ChatInput({
       }
 
       // Clear loading state
-        setLoadingAvatars(prev => {
+      setLoadingAvatars(prev => {
         const next = { ...prev }
         for (const contact of contactsToLoad) {
           next[contact.phno] = false
