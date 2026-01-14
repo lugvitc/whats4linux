@@ -25,7 +25,7 @@ func (a *Api) GetChatList() ([]ChatElement, error) {
 				return nil, err
 			}
 			fc = Contact{
-				RawJID: cm.JID.String(),
+				JID: cm.JID.String(),
 				FullName: groupInfo.Name,
 			}
 		} else {
@@ -36,7 +36,7 @@ func (a *Api) GetChatList() ([]ChatElement, error) {
 
 
 			fc = Contact{
-				RawJID:     cm.JID.String(),
+				JID:     cm.JID.String(),
 				Short:      contact.FirstName,
 				FullName:   contact.FullName,
 				PushName:   contact.PushName,

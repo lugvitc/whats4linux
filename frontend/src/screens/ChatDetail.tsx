@@ -82,7 +82,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
             const self = await GetProfile("")
             const contacts = groupInfo.group_participants
               .map((p: any) => p.contact)
-              .filter((c: any) => c && c.phno !== self.phno && c.raw_jid !== self.raw_jid)
+              .filter((c: any) => c && c.phno !== self.phno && c.jid !== self.jid)
             setMentionableContacts(contacts)
           } catch (err) {
             setMentionableContacts(groupInfo.group_participants.map((p: any) => p.contact))
@@ -364,12 +364,12 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
             const mentionText = `@${name}`
 
             if (processedText.includes(mentionText)) {
-              const userPart = mention.raw_jid.split("@")[0]
+              const userPart = mention.jid.split("@")[0]
               const replacement = `@${userPart}`
 
               processedText = processedText.replaceAll(mentionText, replacement)
 
-              mentionsToSend.push(mention.raw_jid)
+              mentionsToSend.push(mention.jid)
             }
           }
         }

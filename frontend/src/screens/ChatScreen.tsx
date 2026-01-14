@@ -284,12 +284,12 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
     async (chatElements: api.ChatElement[]): Promise<ChatItem[]> => {
       return Promise.all(
         chatElements.map(async c => {
-          const isGroup = c.raw_jid?.endsWith("@g.us") || false
+          const isGroup = c.jid?.endsWith("@g.us") || false
           const avatar = c.avatar_url || ""
           const senderName = c.Sender ? await getContactName(c.Sender) : ""
 
           return {
-            id: c.raw_jid || "",
+            id: c.jid || "",
             name: c.full_name || c.push_name || c.short || c.phno || "Unknown",
             subtitle: c.latest_message || "",
             type: isGroup ? "group" : "contact",

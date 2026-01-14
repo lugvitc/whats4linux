@@ -11,7 +11,7 @@ import (
 
 type Contact struct {
 	Phno       string `json:"phno"`
-	RawJID     string `json:"raw_jid"`
+	JID     string `json:"jid"`
 	Short      string `json:"short"`
 	FullName   string `json:"full_name"`
 	PushName   string `json:"push_name"`
@@ -43,7 +43,7 @@ func (a *Api) GetContact(jid types.JID) (*Contact, error) {
 
 	return &Contact{
 		Phno:       phonenumbers.Format(num, phonenumbers.INTERNATIONAL),
-		RawJID:     jid.String(),
+		JID:        jid.String(),
 		FullName:   contact.FullName,
 		Short:      contact.FirstName,
 		PushName:   contact.PushName,
@@ -68,7 +68,7 @@ func (a *Api) FetchContacts() ([]Contact, error) {
 
 		contacts = append(contacts, Contact{
 			Phno:       phonenumbers.Format(num, phonenumbers.INTERNATIONAL),
-			RawJID:     jid.String(),
+			JID:     jid.String(),
 			FullName:   c.FullName,
 			Short:      c.FirstName,
 			PushName:   c.PushName,
