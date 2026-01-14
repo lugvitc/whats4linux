@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react"
-import { parseWhatsAppMarkdown } from "../../utils/markdown"
 import { useContactStore } from "../../store/useContactStore"
 
 export function QuotedMessage({
@@ -47,9 +46,8 @@ export function QuotedMessage({
   if (!quoted) return null
 
   const getText = () => {
-    if (quoted.extendedTextMessage?.text)
-      return parseWhatsAppMarkdown(quoted.extendedTextMessage.text)
-    if (quoted.conversation) return parseWhatsAppMarkdown(quoted.conversation)
+    if (quoted.extendedTextMessage?.text) quoted.extendedTextMessage.text
+    if (quoted.conversation) return quoted.conversation
     if (quoted.imageMessage) return quoted.imageMessage.caption || "📷 Photo"
     if (quoted.videoMessage) return quoted.videoMessage.caption || "🎥 Video"
     if (quoted.documentMessage) return quoted.documentMessage.fileName || "📄 Document"
