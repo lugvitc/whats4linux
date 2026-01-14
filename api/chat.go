@@ -1,8 +1,6 @@
 package api
 
 import (
-	"fmt"
-
 	"github.com/lugvitc/whats4linux/internal/misc"
 	"go.mau.fi/whatsmeow/types"
 )
@@ -35,6 +33,7 @@ func (a *Api) GetChatList() ([]ChatElement, error) {
 			if err != nil {
 				return nil, err
 			}
+
 			fc = Contact{
 				JID:        cm.JID.String(),
 				Short:      contact.FirstName,
@@ -43,9 +42,6 @@ func (a *Api) GetChatList() ([]ChatElement, error) {
 				IsBusiness: contact.BusinessName != "",
 			}
 		}
-
-		// todo: remove this later
-		fc.FullName = fmt.Sprintf("%s (%s)", fc.FullName, cm.JID.String())
 		ce[i] = ChatElement{
 			LatestMessage: cm.MessageText,
 			LatestTS:      cm.MessageTime,

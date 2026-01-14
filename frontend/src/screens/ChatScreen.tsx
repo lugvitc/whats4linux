@@ -290,7 +290,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
 
           return {
             id: c.jid || "",
-            name: c.full_name || c.push_name || c.short || c.jid || "Unknown",
+            name: c.full_name || c.push_name || c.short || c.phno || "Unknown",
             subtitle: c.latest_message || "",
             type: isGroup ? "group" : "contact",
             timestamp: c.LatestTS,
