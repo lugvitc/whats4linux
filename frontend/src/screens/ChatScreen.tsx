@@ -328,7 +328,13 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
     // Listen for new messages - update only the specific chat
     const unsubNewMessage = EventsOn(
       "wa:new_message",
-      (data: { chatId: string; messageText: string; timestamp: number; sender: string }) => {
+      (data: {
+        chatId: string
+        messageText: string
+        timestamp: number
+        sender: string
+        reaction?: string
+      }) => {
         if (!initialFetchDoneRef.current) {
           // If we haven't done initial fetch, do a full fetch
           setTimeout(fetchChats, 500)
@@ -338,8 +344,15 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
         // Check if we already have this chat in our list
         const existingChat = getChat(data.chatId)
         if (existingChat) {
+          let previewText = data.messageText
+          let senderForUpdate = data.sender
+          if (data.reaction) {
+            previewText = `${data.sender} reacted ${data.reaction} to: "${previewText}"`
+            senderForUpdate = "" 
+          }
+
           // Update only this specific chat - no full re-fetch needed!
-          updateChatLastMessage(data.chatId, data.messageText, data.timestamp, data.sender)
+          updateChatLastMessage(data.chatId, previewText, data.timestamp, senderForUpdate)
         } else {
           // New chat we don't have - need to fetch to get avatar/name
           setTimeout(fetchChats, 500)

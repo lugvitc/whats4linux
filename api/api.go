@@ -151,6 +151,35 @@ func (a *Api) mainEventHandler(evt any) {
 			}
 		}
 
+		if reaction := v.Message.GetReactionMessage(); reaction != nil {
+			go func() {
+				targetID := reaction.GetKey().GetID()
+				targetMsg, err := a.messageStore.GetMessageWithMedia(v.Info.Chat.String(), targetID)
+				if err != nil {
+					log.Println("Failed", err)
+					return
+				}
+
+				targetText := targetMsg.Text
+				senderName := v.Info.PushName
+				if senderName == "" && v.Info.Sender.User != "" {
+					senderName = v.Info.Sender.User
+				}
+				if v.Info.IsFromMe {
+					senderName = "You"
+				}
+
+				runtime.EventsEmit(a.ctx, "wa:new_message", map[string]any{
+					"chatId":      v.Info.Chat.String(),
+					"message":     nil,
+					"messageText": targetText,
+					"reaction":    reaction.GetText(),
+					"timestamp":   v.Info.Timestamp.Unix(),
+					"sender":      senderName,
+				})
+			}()
+		}
+
 		// Automatically cache images and stickers when they arrive
 		go func() {
 			if v.Message.GetImageMessage() != nil || v.Message.GetStickerMessage() != nil {
