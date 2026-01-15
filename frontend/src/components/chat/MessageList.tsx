@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useRef, useCallback, memo, useEffect } from "react"
+import { forwardRef, useImperativeHandle, useRef, useCallback, memo, useEffect} from "react"
 import { store } from "../../../wailsjs/go/models"
 import { MessageItem } from "./MessageItem"
 
@@ -136,7 +136,7 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
           <div className="animate-spin h-5 w-5 border-2 border-green-500 rounded-full border-t-transparent" />
         ) : null}
       </div>
-      {messages.map(msg => (
+      {messages.map((msg) => (
         <div key={msg.Info.ID} data-message-id={msg.Info.ID} className="py-1 overflow-x-hidden">
           <MemoizedMessageItem
             message={msg}
