@@ -5,6 +5,7 @@ import {
   SendChatPresence,
   GetGroupInfo,
   GetProfile,
+  MarkRead,
 } from "../../wailsjs/go/api/Api"
 import { store } from "../../wailsjs/go/models"
 import { EventsOn } from "../../wailsjs/runtime/runtime"
@@ -176,6 +177,18 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
       setIsLoadingMore(false)
     }
   }, [chatId, hasMore, isLoadingMore, messages, prependMessages])
+
+  useEffect(() => {
+    if (isAtBottom) {
+      const currentMessages = messages[chatId] || []
+      const messageIds = currentMessages.map((m: any) => m?.Info?.ID).filter((id: any) => !!id)
+      if (messageIds.length > 0) {
+        MarkRead(chatId, messageIds, "read-msg").catch(err => {
+          console.error("Failed to mark messages as read:", err)
+        })
+      }
+    }
+  }, [isAtBottom, chatId])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value

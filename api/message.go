@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/lugvitc/whats4linux/internal/markdown"
 	"github.com/lugvitc/whats4linux/internal/store"
@@ -452,4 +453,23 @@ func (a *Api) SendMessage(chatJID string, content MessageContent) (string, error
 	})
 
 	return resp.ID, nil
+}
+func (a *Api) MarkRead(chatJID string, messageIDs []string, Type string) error {
+	parsedJID, err := types.ParseJID(chatJID)
+	if err != nil {
+		return err
+	}
+	ids := make([]types.MessageID, 0, len(messageIDs))
+	for _, id := range messageIDs {
+		ids = append(ids, types.MessageID(id))
+	}
+	if Type == "read-msg" {
+		err = a.waClient.MarkRead(a.ctx, ids, time.Now(), parsedJID, *a.waClient.Store.ID, types.ReceiptTypeRead)
+		if err != nil {
+			log.Println("MarkRead error:", err)
+			return err
+		}
+	}
+
+	return nil
 }

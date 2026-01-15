@@ -215,7 +215,11 @@ func (a *Api) mainEventHandler(evt any) {
 		}
 	case *events.Disconnected:
 		a.waClient.SendPresence(a.ctx, types.PresenceUnavailable)
-
+	case *events.Receipt:
+		runtime.EventsEmit(a.ctx, "wa:message_receipt", map[string]any{
+			"chatId": v.Chat.String(),
+			"status": v.Type.GoString(),
+		})
 	default:
 		// Ignore other events for now
 	}
