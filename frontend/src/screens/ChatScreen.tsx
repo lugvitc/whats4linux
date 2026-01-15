@@ -22,65 +22,6 @@ import {
 } from "../components/common/resizable"
 import { useContactStore } from "@/store/useContactStore"
 
-const USE_SAMPLE_DATA = false
-
-const SAMPLE_CHATS: ChatItem[] = [
-  {
-    id: "1234567890@s.whatsapp.net",
-    name: "John Doe",
-    subtitle: "Hey! How are you doing?",
-    type: "contact",
-    avatar: "",
-  },
-  {
-    id: "0987654321@s.whatsapp.net",
-    name: "Jane Smith",
-    subtitle: "Thanks for your help yesterday!",
-    type: "contact",
-    avatar: "",
-  },
-  {
-    id: "group123@g.us",
-    name: "Project Team",
-    subtitle: "Alice: The meeting is at 3 PM",
-    type: "group",
-    avatar: "",
-  },
-  {
-    id: "5551234567@s.whatsapp.net",
-    name: "Mike Johnson",
-    subtitle: "Can you send me that file?",
-    type: "contact",
-    avatar: "",
-  },
-  {
-    id: "group456@g.us",
-    name: "Family Group",
-    subtitle: "Mom: Dinner at 7 tonight",
-    type: "group",
-    avatar: "",
-  },
-  {
-    id: "7778889999@s.whatsapp.net",
-    name: "Sarah Williams",
-    subtitle: "See you tomorrow!",
-    type: "contact",
-    avatar: "",
-  },
-]
-
-interface ChatAvatarProps {
-  chat: ChatItem
-}
-
-const ChatAvatar = ({ chat }: ChatAvatarProps) => {
-  if (chat.avatar) {
-    return <img src={chat.avatar} alt={chat.name} className="w-full h-full object-cover" />
-  }
-
-  return chat.type === "group" ? <GroupIcon /> : <UserAvatar />
-}
-
 interface HeaderProps {
   onOpenSettings: () => void
   avatar?: string
@@ -355,11 +296,6 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
     isFetchingRef.current = true
 
     try {
-      if (USE_SAMPLE_DATA) {
-        setChats(SAMPLE_CHATS)
-        return
-      }
-
       const chatElements = await GetChatList()
 
       if (!mountedRef.current) return
@@ -377,11 +313,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
       initialFetchDoneRef.current = true
     } catch (err) {
       console.error("Error fetching chats:", err)
-      if (mountedRef.current && USE_SAMPLE_DATA) {
-        setChats(SAMPLE_CHATS)
-      } else {
-        setChats([])
-      }
+      setChats([])
     } finally {
       isFetchingRef.current = false
     }
@@ -450,7 +382,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
 
   return (
     <div className="flex h-screen bg-light-secondary dark:bg-black overflow-hidden">
-      <ResizablePanelGroup direction="horizontal" className="h-full">
+      <ResizablePanelGroup className="h-full">
         {/* Chat List Sidebar */}
         <ResizablePanel
           defaultSize={30}
