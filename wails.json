@@ -9,5 +9,11 @@
   "author": {
     "name": "celestix",
     "email": "i@anodite.me"
+  },
+  "info": {
+    "companyName": "lugvitc",
+    "productName": "whats4linux",
+    "productVersion": "1.0.0",
+    "comments": "An unofficial WhatsApp client."
   }
 }

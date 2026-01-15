@@ -4,6 +4,7 @@ import (
 	"html"
 	"strings"
 
+	"github.com/lugvitc/whats4linux/internal/misc"
 	"github.com/lugvitc/whats4linux/internal/settings"
 	"github.com/lugvitc/whats4linux/internal/store"
 	"go.mau.fi/whatsmeow/types"
@@ -65,4 +66,8 @@ func replaceMentions(text string, mentionedJIDs []string, a *Api) string {
 	}
 
 	return result
+}
+
+func (a *Api) GetProfileColor(jidStr string) string {
+	return misc.GetProfileColor(jidStr)
 }

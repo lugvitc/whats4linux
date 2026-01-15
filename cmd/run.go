@@ -33,6 +33,7 @@ func run(assets fs.FS) cli.ActionFunc {
 			},
 			BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
 			OnStartup:        api.Startup,
+			OnShutdown:       api.Shutdown,
 			SingleInstanceLock: &options.SingleInstanceLock{
 				UniqueId:               misc.APP_ID,
 				OnSecondInstanceLaunch: api.OnSecondInstanceLaunch,

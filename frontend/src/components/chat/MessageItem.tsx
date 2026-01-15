@@ -59,10 +59,6 @@ export function MessageItem({
     } catch (e) {}
   }
 
-  const onDoubleClick = () => {
-    handleReply();
-  }
-
   const handleReply = () => onReply?.(message)
 
   const handleReplyPrivately = () => {
@@ -128,7 +124,7 @@ export function MessageItem({
     if (!content) return <span className="italic opacity-50">Empty Message</span>
     else if (content.conversation || content.extendedTextMessage?.text) {
       const htmlContent = content.conversation || content.extendedTextMessage?.text
-      return <div dangerouslySetInnerHTML={{ __html: htmlContent }} onDoubleClick={onDoubleClick} />
+      return <div className="pr-5" dangerouslySetInnerHTML={{ __html: htmlContent }} />
     } else if (content.imageMessage)
       return (
         <div className="flex flex-col">

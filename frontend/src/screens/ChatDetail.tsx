@@ -1,5 +1,11 @@
 import { useEffect, useState, useRef, useCallback } from "react"
-import { SendMessage, FetchMessagesPaged, SendChatPresence } from "../../wailsjs/go/api/Api"
+import {
+  SendMessage,
+  FetchMessagesPaged,
+  SendChatPresence,
+  GetGroupInfo,
+  GetProfile,
+} from "../../wailsjs/go/api/Api"
 import { store } from "../../wailsjs/go/models"
 import { EventsOn } from "../../wailsjs/runtime/runtime"
 import { useMessageStore, useUIStore, useChatStore } from "../store"
@@ -43,6 +49,8 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
   const [replyingTo, setReplyingTo] = useState<store.DecodedMessage | null>(null)
   const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null)
 
+  const [mentionableContacts, setMentionableContacts] = useState<any[]>([])
+  const [selectedMentions, setSelectedMentions] = useState<any[]>([])
   const [hasMore, setHasMore] = useState(true)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [initialLoad, setInitialLoad] = useState(true)
@@ -62,10 +70,33 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
   const easeShowRef = useRef(getEase("DropDown", "open"))
   const easeHideRef = useRef(getEase("DropDown", "close"))
 
+  const currentChat = chatsById.get(chatId)
+  const chatType = currentChat?.type || "contact"
+
   useEffect(() => {
-    easeShowRef.current = getEase("DropDown", "open")
-    easeHideRef.current = getEase("DropDown", "close")
-  })
+    const loadMentionableContacts = async () => {
+      if (chatType === "group") {
+        try {
+          const groupInfo = await GetGroupInfo(chatId)
+          try {
+            const self = await GetProfile("")
+            const contacts = groupInfo.group_participants
+              .map((p: any) => p.contact)
+              .filter((c: any) => c && c.phno !== self.phno && c.jid !== self.jid)
+            setMentionableContacts(contacts)
+          } catch (err) {
+            setMentionableContacts(groupInfo.group_participants.map((p: any) => p.contact))
+          }
+        } catch (error) {
+          console.error("Failed to fetch group info:", error)
+          setMentionableContacts([])
+        }
+      } else {
+        setMentionableContacts([])
+      }
+    }
+    loadMentionableContacts()
+  }, [chatId, chatType])
 
   const scrollToBottom = useCallback((instant = false) => {
     requestAnimationFrame(() => {
@@ -147,7 +178,23 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
   }, [chatId, hasMore, isLoadingMore, messages, prependMessages])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInputText(e.target.value)
+    const newValue = e.target.value
+    setInputText(newValue)
+    if (selectedMentions.length > 0) {
+      setSelectedMentions(prev =>
+        prev.filter(mention => {
+          let name = mention.full_name
+          if (!name) {
+            if (mention.push_name) {
+              name = `~ ${mention.push_name}`
+            } else {
+              name = mention.short || mention.phno
+            }
+          }
+          return newValue.includes(`@${name}`)
+        }),
+      )
+    }
 
     if (!isComposingRef.current) {
       isComposingRef.current = true
@@ -262,6 +309,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
     setPastedImage(null)
     setSelectedFile(null)
     setReplyingTo(null)
+    setSelectedMentions([])
 
     // Scroll to bottom to show the new message
     requestAnimationFrame(() => {
@@ -290,7 +338,48 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
         }
         reader.readAsDataURL(fileToSend)
       } else {
-        await SendMessage(chatId, { type: "text", text: textToSend, quotedMessageId })
+        let processedText = textToSend
+        const mentionsToSend: string[] = []
+        // mentions process here
+        if (selectedMentions.length > 0) {
+          const sortedMentions = [...selectedMentions].sort((a, b) => {
+            let nameA = a.full_name
+            if (!nameA) nameA = a.push_name ? `~ ${a.push_name}` : a.short || a.phno
+
+            let nameB = b.full_name
+            if (!nameB) nameB = b.push_name ? `~ ${b.push_name}` : b.short || b.phno
+
+            return nameB.length - nameA.length
+          })
+
+          for (const mention of sortedMentions) {
+            let name = mention.full_name
+            if (!name) {
+              if (mention.push_name) {
+                name = `~ ${mention.push_name}`
+              } else {
+                name = mention.short || mention.phno
+              }
+            }
+            const mentionText = `@${name}`
+
+            if (processedText.includes(mentionText)) {
+              const userPart = mention.jid.split("@")[0]
+              const replacement = `@${userPart}`
+
+              processedText = processedText.replaceAll(mentionText, replacement)
+
+              mentionsToSend.push(mention.jid)
+            }
+          }
+        }
+
+        await SendMessage(chatId, {
+          type: "text",
+          text: processedText,
+          quotedMessageId,
+          mentions: mentionsToSend,
+        })
       }
     } catch (err) {
       console.error("Failed to send:", err)
@@ -360,9 +449,6 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
     }
   }, [isAtBottom])
 
-  const currentChat = chatsById.get(chatId)
-  const chatType = currentChat?.type || "contact"
-
   return (
     <div className="flex h-full">
       <div className="flex flex-col flex-1">
@@ -422,6 +508,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
           emojiPickerRef={emojiPickerRef}
           emojiButtonRef={emojiButtonRef}
           replyingTo={replyingTo}
+          mentionableContacts={mentionableContacts}
           onInputChange={handleInputChange}
           onKeyDown={e =>
             e.key === "Enter" && !e.shiftKey && (e.preventDefault(), handleSendMessage())
@@ -457,6 +544,8 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
           }}
           onToggleEmojiPicker={() => setShowEmojiPicker(!showEmojiPicker)}
           onCancelReply={() => setReplyingTo(null)}
+          onMentionAdd={contact => setSelectedMentions(prev => [...prev, contact])}
+          selectedMentions={selectedMentions}
         />
       </div>
 

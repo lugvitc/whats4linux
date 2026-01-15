@@ -11,6 +11,7 @@ import (
 	"github.com/lugvitc/whats4linux/internal/settings"
 	"github.com/lugvitc/whats4linux/internal/store"
 	"github.com/lugvitc/whats4linux/internal/wa"
+	"github.com/lugvitc/whats4linux/shared/socket"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"go.mau.fi/whatsmeow"
@@ -28,6 +29,7 @@ type Api struct {
 	waClient     *whatsmeow.Client
 	messageStore *store.MessageStore
 	imageCache   *cache.ImageCache
+	us           *socket.UnixSocket
 }
 
 // NewApi creates a new Api application struct
@@ -40,12 +42,32 @@ func (a *Api) OnSecondInstanceLaunch(secondInstanceData options.SecondInstanceDa
 	runtime.Show(a.ctx)
 }
 
+func (a *Api) Shutdown(ctx context.Context) {
+	_ = a.us.SendCommand("shutdown")
+}
+
 // startup is called when the app starts. The context is saved
 // so we can call the runtime methods
 func (a *Api) Startup(ctx context.Context) {
+	var err error
+	a.us, err = socket.NewUnixSocket(ctx)
+	if err != nil {
+		panic(err)
+	}
+	go func() {
+		err := a.us.ListenAndServe()
+		if err != nil {
+			log.Println("Unix socket server error:", err)
+		}
+	}()
+
+	err = misc.StartSystray()
+	if err != nil {
+		log.Printf("failed to start systray: %v", err)
+	}
+
 	a.ctx = ctx
 	dbLog := waLog.Stdout("Database", settings.GetLogLevel(), true)
-	var err error
 	a.cw, err = wa.NewAppDatabase(ctx)
 	if err != nil {
 		panic(err)

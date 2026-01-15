@@ -17,7 +17,7 @@ jobs:
         include:
          - os: ubuntu-latest
            platform: linux/amd64
-           binary: whats4linux-linux
+           binary: Whats4Linux-Linux-x86_64.AppImage
            artifact: whats4linux-linux-amd64
            webkit: true
 
@@ -53,7 +53,7 @@ jobs:
         if: matrix.webkit
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev
 
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -65,17 +65,41 @@ jobs:
           go install github.com/wailsapp/wails/v2/cmd/wails@latest
           echo "$HOME/go/bin" >> $GITHUB_PATH
 
-      - name: Build Wails app
+      - name: Build binaries
         shell: bash
         run: |
+          cd systray
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            go build -o whats4linux_tray.exe .
+          else
+            go build -o whats4linux_tray .
+          fi
+          cd ..
+          
           wails build \
             -o ${{ matrix.binary }} \
             ${{ matrix.webkit && '-tags webkit2_41' || '' }} \
             ${{ env.IS_NIGHTLY && '-ldflags "-s -w -X main.version=v1.0.0 -X main.buildType=nightly"' || '' }}
 
+      - name: Download appimagetool
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          wget -q https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
+          chmod +x appimagetool-x86_64.AppImage
+
+      - name: Build AppImage
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          mv systray/whats4linux_tray packaging/AppImage/AppDir/usr/bin
+          mv "build/bin/${{matrix.binary}}" packaging/AppImage/AppDir/usr/bin/whats4linux
+          chmod +x packaging/AppImage/AppDir/usr/bin/*
+          ./appimagetool-x86_64.AppImage packaging/AppImage/AppDir
+          mv Whats4Linux-x86_64.AppImage "build/bin/${{matrix.binary}}"
+
       - name: Zip macOS bundle
         if: matrix.os == 'macos-latest'
         run: |
+          mv systray/whats4linux_tray build/bin/whats4linux.app/Contents/MacOS/whats4linux_tray
           cd build/bin
           ditto -c -k --sequesterRsrc --keepParent \
             whats4linux.app \

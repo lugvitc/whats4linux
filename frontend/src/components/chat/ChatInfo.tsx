@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { UserAvatar } from "../../assets/svgs/chat_icons"
 import {
   Mediaicon,
@@ -41,13 +41,11 @@ export function ChatInfo({
     }
   }, [isOpen, chatId])
 
-  useEffect(() => {
-    if (isOpen) {
-      loadInfo()
-    }
-  }, [isOpen, chatId])
+  const loadInfo = useCallback(async () => {
+    // Don't re-fetch if we already have the data for this chat
+    if (chatType === "group" && groupInfo?.group_name) return
+    if (chatType === "contact" && contactInfo?.phno === chatId) return
 
-  const loadInfo = async () => {
     setLoading(true)
     try {
       if (chatType === "group") {
@@ -62,12 +60,24 @@ export function ChatInfo({
     } finally {
       setLoading(false)
     }
-  }
+  }, [chatId, chatType, groupInfo, contactInfo])
+
+  useEffect(() => {
+    if (isOpen) {
+      loadInfo()
+    }
+  }, [isOpen, loadInfo])
+
   const participants = groupInfo?.group_participants ?? []
+  const sortedParticipants = participants.sort((a, b) => {
+    if (a.is_admin && !b.is_admin) return -1
+    if (!a.is_admin && b.is_admin) return 1
+    return 0
+  })
   const visibleParticipants = showAllParticipants
-    ? participants
-    : participants.slice(0, MAX_VISIBLE)
-  const hasMore = (groupInfo?.participant_count ?? participants.length) > MAX_VISIBLE
+    ? sortedParticipants
+    : sortedParticipants.slice(0, MAX_VISIBLE)
+  const hasMore = (groupInfo?.participant_count ?? sortedParticipants.length) > MAX_VISIBLE
 
   if (!isOpen) return null
 
@@ -110,7 +120,7 @@ export function ChatInfo({
                   : contactInfo?.full_name || "~ " + contactInfo?.push_name || chatName}
               </h3>
               {chatType === "contact" && contactInfo && (
-                <p className="text-sm text-gray-600 dark:text-gray-400">{contactInfo.jid}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{contactInfo.phno}</p>
               )}
               {chatType === "group" && groupInfo && (
                 <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -130,7 +140,7 @@ export function ChatInfo({
                     Group created by{" "}
                     {groupInfo.group_owner.full_name ||
                       groupInfo.group_owner.push_name ||
-                      groupInfo.group_owner.jid}
+                      groupInfo.group_owner.phno}
                     , on {new Date(groupInfo.group_created_at).toLocaleDateString()} at{" "}
                     {new Date(groupInfo.group_created_at).toLocaleString("en-US", {
                       hour: "2-digit",
@@ -228,7 +238,7 @@ export function ChatInfo({
                           {participant.contact.full_name || "~ " + participant.contact.push_name}
                         </p>
                         <p className="text-sm text-gray-600 dark:text-gray-400">
-                          {participant.contact.jid}
+                          {participant.contact.phno}
                         </p>
                       </div>
 
@@ -256,7 +266,7 @@ export function ChatInfo({
               <div className="mx-3 border-b border-gray-200 dark:border-dark-tertiary">
                 <button className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-red-600 dark:text-red-400">
                   <BlockIcon />
-                  <span>Block {contactInfo?.full_name || contactInfo?.jid || "contact"}</span>
+                  <span>Block {contactInfo?.full_name || contactInfo?.phno || "contact"}</span>
                 </button>
                 <button className="w-full p-4 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-red-600 dark:text-red-400">
                   <ReportIcon />

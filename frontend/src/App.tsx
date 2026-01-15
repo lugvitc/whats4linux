@@ -5,8 +5,7 @@ import QRCode from "qrcode"
 import { ChatListScreen } from "./screens/ChatScreen"
 import { LoginScreen } from "./screens/LoginScreen"
 import { SettingsScreen } from "./screens/SettingsScreen"
-import darkModeMoon from "./assets/svgs/dark_mode_moon.svg"
-import lightModeSun from "./assets/svgs/light_mode.svg"
+
 import { useUIStore } from "./store"
 import { useAppSettingsStore } from "./store/useAppSettingsStore"
 
@@ -95,18 +94,7 @@ function App() {
           </div>
         ))}
       </div>
-      <button
-        onClick={toggleTheme}
-        className={`absolute top-4 right-4 p-2 rounded-full z-50 ${
-          theme === "dark" ? "bg-dark-tertiary hover:bg-[#2a2a2a]" : "bg-gray-200 hover:bg-gray-300"
-        }`}
-      >
-        {theme === "light" ? (
-          <img src={darkModeMoon} width={20} height={20} alt="Dark mode" />
-        ) : (
-          <img src={lightModeSun} width={20} height={20} alt="Light mode" />
-        )}
-      </button>
+
       {screen === "login" && <LoginScreen canvasRef={canvasRef} status={status} />}
 
       {(screen === "chats" || screen === "settings") && (

@@ -290,7 +290,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
 
           return {
             id: c.jid || "",
-            name: c.full_name || c.push_name || c.short || c.jid || "Unknown",
+            name: c.full_name || c.push_name || c.short || c.phno || "Unknown",
             subtitle: c.latest_message || "",
             type: isGroup ? "group" : "contact",
             timestamp: c.LatestTS,
@@ -454,6 +454,8 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
         {/* Chat List Sidebar */}
         <ResizablePanel
           defaultSize={30}
+          minSize={300}
+          maxSize={1000}
           className={clsx(
             "flex-col",
             "border-r border-gray-200 dark:border-dark-tertiary",

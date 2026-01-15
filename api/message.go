@@ -17,10 +17,11 @@ import (
 )
 
 type MessageContent struct {
-	Type            string `json:"type"`
-	Text            string `json:"text,omitempty"`
-	Base64Data      string `json:"base64Data,omitempty"`
-	QuotedMessageID string `json:"quotedMessageId,omitempty"`
+	Type            string   `json:"type"`
+	Text            string   `json:"text,omitempty"`
+	Base64Data      string   `json:"base64Data,omitempty"`
+	QuotedMessageID string   `json:"quotedMessageId,omitempty"`
+	Mentions        []string `json:"mentions,omitempty"`
 }
 
 func (a *Api) processMessageText(msg *waE2E.Message) string {
@@ -172,8 +173,8 @@ func (a *Api) buildQuotedContext(chatJID types.JID, quotedMessageID string) (*wa
 	}
 
 	if msg.Info.Sender.User != "" {
-		participant := msg.Info.Sender.String()
-		contextInfo.Participant = &participant
+		participantJID := msg.Info.Sender.ToNonAD().String()
+		contextInfo.Participant = proto.String(participantJID)
 	}
 
 	return contextInfo, nil
@@ -199,7 +200,16 @@ func (a *Api) SendMessage(chatJID string, content MessageContent) (string, error
 			return "", err
 		}
 
-		if contextInfo != nil {
+		mentionedJIDs := content.Mentions
+
+		// If we have mentions or quoted context, use ExtendedTextMessage
+		if len(mentionedJIDs) > 0 || contextInfo != nil {
+			if contextInfo == nil {
+				contextInfo = &waE2E.ContextInfo{}
+			}
+			if len(mentionedJIDs) > 0 {
+				contextInfo.MentionedJID = mentionedJIDs
+			}
 			msgContent = &waE2E.Message{
 				ExtendedTextMessage: &waE2E.ExtendedTextMessage{
 					Text:        &content.Text,
