@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { store } from "../../../wailsjs/go/models"
 import { DownloadImageToFile, GetContact } from "../../../wailsjs/go/api/Api"
 import { MediaContent } from "./MediaContent"
@@ -14,6 +14,8 @@ interface MessageItemProps {
   onReply?: (message: store.DecodedMessage) => void
   onQuotedClick?: (messageId: string) => void
   highlightedMessageId?: string | null
+  isActive: boolean
+  index: number
 }
 
 const formatSize = (bytes: number) => {
@@ -31,6 +33,8 @@ export function MessageItem({
   onReply,
   onQuotedClick,
   highlightedMessageId,
+  isActive,
+  index
 }: MessageItemProps) {
   // console.log(message)
   const isFromMe = message.Info.IsFromMe
@@ -46,6 +50,14 @@ export function MessageItem({
   const isSticker = !!content?.stickerMessage
   const isPending = (message as any).isPending || false
   const [senderName, setSenderName] = useState("~ " + message.Info.PushName || "Unknown")
+  const innerDiv = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (isActive){
+      console.log(index)
+      handleReply()
+    }
+  }, [isActive])
 
   // Helper function to render caption with markdown
   const renderCaption = (caption: string | undefined) => {
@@ -209,8 +221,21 @@ export function MessageItem({
 
   const hasMedia = !!(content?.imageMessage || content?.videoMessage)
 
+  const handleDoubleClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (innerDiv.current){
+      const react = innerDiv.current.getBoundingClientRect()
+      if (!isFromMe && event.clientX > react.right){
+        handleReply()
+      }
+      else if (isFromMe && event.clientX < react.left){
+        handleReply()
+      }
+    }
+    // event.stopPropagation()
+  }
+
   return (
-    <>
+    <div className="flex flex-col" onDoubleClick={handleDoubleClick}>
       <div
         className={clsx(
           "flex mb-2 group transition duration-200",
@@ -220,7 +245,7 @@ export function MessageItem({
           },
         )}
       >
-        <div
+        <div ref={innerDiv}
           className={clsx(
             "max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl rounded-lg p-2 mx-5 shadow-sm relative min-w-0",
             {
@@ -235,7 +260,9 @@ export function MessageItem({
               "bg-received-bubble-bg dark:bg-received-bubble-dark-bg text-(--color-received-bubble-text) dark:text-(--color-received-bubble-dark-text)":
                 !isFromMe && !isSticker,
             },
-          )}
+          )
+        }
+          // onDoubleClick={handleDoubleClick}
         >
           {/* Message Menu - positioned at top right corner */}
           <MessageMenu
@@ -277,7 +304,7 @@ export function MessageItem({
           </div>
         </div>
       </div>
-    </>
+    </div>
   )
 }
 

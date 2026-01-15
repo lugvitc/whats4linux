@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useRef, useCallback, memo, useEffect } from "react"
+import { forwardRef, useImperativeHandle, useRef, useCallback, memo, useEffect, useState } from "react"
 import { store } from "../../../wailsjs/go/models"
 import { MessageItem } from "./MessageItem"
 
@@ -42,6 +42,7 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
 ) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const loadMoreTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const [activeChildIndex, setActiveChildIndex] = useState<number | null>(null)
 
   const scrollToBottom = useCallback((behavior: "auto" | "smooth" = "smooth") => {
     const el = containerRef.current
@@ -98,6 +99,24 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
     }
   }, [])
 
+  const handleDoubleClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    // const y = event.clientY
+    // console.log(messages)
+    // const parent = containerRef.current
+    // if (!parent) return;
+    //
+    // const childNodes = Array.from(parent.children)
+    //
+    // childNodes.forEach((child, index) => {
+    //   const react = child.getBoundingClientRect()
+    //   console.log(event.clientX, react.left, react.right)
+    //   if(y >= react.top && y <= react.bottom) {
+    //     // event.stopPropagation()
+    //     setActiveChildIndex(index)
+    //   }
+    // })
+  }
+
   const onScroll = useCallback(
     (e: React.UIEvent<HTMLDivElement>) => {
       const el = e.currentTarget
@@ -128,6 +147,7 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
     <div
       ref={containerRef}
       onScroll={onScroll}
+      onDoubleClick={handleDoubleClick}
       className="h-full overflow-y-auto overflow-x-hidden bg-repeat virtuoso-scroller"
       style={{ backgroundImage: "url('/assets/images/bg-chat-tile-dark.png')" }}
     >
@@ -136,7 +156,7 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
           <div className="animate-spin h-5 w-5 border-2 border-green-500 rounded-full border-t-transparent" />
         ) : null}
       </div>
-      {messages.map(msg => (
+      {messages.map((msg, index) => (
         <div key={msg.Info.ID} data-message-id={msg.Info.ID} className="py-1 overflow-x-hidden">
           <MemoizedMessageItem
             message={msg}
@@ -145,6 +165,8 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
             onReply={onReply}
             onQuotedClick={onQuotedClick}
             highlightedMessageId={highlightedMessageId}
+            isActive={activeChildIndex === index+1}
+            index={index-1}
           />
         </div>
       ))}
