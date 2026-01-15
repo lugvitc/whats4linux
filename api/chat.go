@@ -1,7 +1,6 @@
 package api
 
 import (
-	"github.com/lugvitc/whats4linux/internal/misc"
 	"go.mau.fi/whatsmeow/types"
 )
 
@@ -11,8 +10,6 @@ type ChatElement struct {
 	Sender        string
 	Contact
 }
-
-var tmpProfileCache = misc.NewVMap[string, string]()
 
 func (a *Api) GetChatList() ([]ChatElement, error) {
 	cmList := a.messageStore.GetChatList()

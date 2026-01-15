@@ -455,21 +455,24 @@ func (a *Api) SendMessage(chatJID string, content MessageContent) (string, error
 	return resp.ID, nil
 }
 func (a *Api) MarkRead(chatJID string, messageIDs []string, Type string) error {
-	parsedJID, err := types.ParseJID(chatJID)
+	parsedChatJID, err := types.ParseJID(chatJID)
 	if err != nil {
 		return err
 	}
-	ids := make([]types.MessageID, 0, len(messageIDs))
-	for _, id := range messageIDs {
-		ids = append(ids, types.MessageID(id))
-	}
 	if Type == "read-msg" {
-		err = a.waClient.MarkRead(a.ctx, ids, time.Now(), parsedJID, *a.waClient.Store.ID, types.ReceiptTypeRead)
-		if err != nil {
-			log.Println("MarkRead error:", err)
-			return err
+		for _, msgID := range messageIDs {
+			msg, err := a.messageStore.GetMessageWithMedia(chatJID, msgID)
+			if err != nil {
+				log.Printf("Failed to get message %s: %v", msgID, err)
+				continue
+			}
+			senderJID := msg.Info.Sender
+			ids := []types.MessageID{types.MessageID(msgID)}
+			err = a.waClient.MarkRead(a.ctx, ids, time.Now(), parsedChatJID, senderJID)
+			if err != nil {
+				log.Printf("MarkRead error for message %s: %v", msgID, err)
+			}
 		}
 	}
-
 	return nil
 }
