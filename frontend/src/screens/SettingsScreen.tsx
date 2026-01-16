@@ -276,7 +276,7 @@ function ProfileCard({ profile, avatar }: { profile: api.Contact | null; avatar?
       </div>
       <div>
         <h3 className="text-light-text dark:text-dark-text font-medium">{profile?.push_name}</h3>
-        <p className="text-sm text-gray-500 dark:text-gray-400">{profile?.jid}</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">{profile?.phno}</p>
       </div>
     </div>
   )
