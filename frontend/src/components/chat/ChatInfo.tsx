@@ -44,7 +44,7 @@ export function ChatInfo({
   const loadInfo = useCallback(async () => {
     // Don't re-fetch if we already have the data for this chat
     if (chatType === "group" && groupInfo?.group_name) return
-    if (chatType === "contact" && contactInfo?.phno === chatId) return
+    if (chatType === "contact" && contactInfo?.jid === chatId) return
 
     setLoading(true)
     try {
@@ -166,7 +166,7 @@ export function ChatInfo({
               <div className="mx-3 border-b border-gray-200 dark:border-dark-tertiary">
                 <div className="p-4">
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Phone</p>
-                  <p className="text-gray-900 dark:text-gray-100">{contactInfo.jid}</p>
+                  <p className="text-gray-900 dark:text-gray-100">{contactInfo.phno}</p>
                 </div>
               </div>
             )}

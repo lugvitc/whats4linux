@@ -48,6 +48,7 @@ func (a *Api) GetProfile(jidStr string) (Contact, error) {
 
 	return Contact{
 		Phno:       jid,
+		JID:        targetJID.String(),
 		FullName:   contact.FullName,
 		Short:      contact.FirstName,
 		PushName:   pushName,
