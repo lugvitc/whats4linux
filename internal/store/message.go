@@ -942,31 +942,47 @@ func extractMessageContent(msg *waE2E.Message) (text, fileName, replyToMessageID
 		width = int(msg.GetImageMessage().GetWidth())
 		height = int(msg.GetImageMessage().GetHeight())
 		mediaType = mtypes.MediaTypeImage
+		if contextInfo := msg.GetImageMessage().GetContextInfo(); contextInfo != nil {
+			replyToMessageID = contextInfo.GetStanzaID()
+			forwarded = contextInfo.GetIsForwarded()
+		}
 	case msg.GetVideoMessage() != nil:
 		emc = msg.GetVideoMessage()
 		text = msg.GetVideoMessage().GetCaption()
 		mediaType = mtypes.MediaTypeVideo
+		if contextInfo := msg.GetVideoMessage().GetContextInfo(); contextInfo != nil {
+			replyToMessageID = contextInfo.GetStanzaID()
+			forwarded = contextInfo.GetIsForwarded()
+		}
 	case msg.GetDocumentMessage() != nil:
 		emc = msg.GetDocumentMessage()
 		text = msg.GetDocumentMessage().GetCaption()
 		fileName = msg.GetDocumentMessage().GetFileName()
 		mediaType = mtypes.MediaTypeDocument
+		if contextInfo := msg.GetDocumentMessage().GetContextInfo(); contextInfo != nil {
+			replyToMessageID = contextInfo.GetStanzaID()
+			forwarded = contextInfo.GetIsForwarded()
+		}
 	case msg.GetAudioMessage() != nil:
 		emc = msg.GetAudioMessage()
 		mediaType = mtypes.MediaTypeAudio
+		if contextInfo := msg.GetAudioMessage().GetContextInfo(); contextInfo != nil {
+			replyToMessageID = contextInfo.GetStanzaID()
+			forwarded = contextInfo.GetIsForwarded()
+		}
 	case msg.GetStickerMessage() != nil:
 		emc = msg.GetStickerMessage()
 		mediaType = mtypes.MediaTypeSticker
 		width = int(msg.GetStickerMessage().GetWidth())
 		height = int(msg.GetStickerMessage().GetHeight())
+		if contextInfo := msg.GetStickerMessage().GetContextInfo(); contextInfo != nil {
+			replyToMessageID = contextInfo.GetStanzaID()
+			forwarded = contextInfo.GetIsForwarded()
+		}
 	default:
 		if text == "" {
 			return
 		}
-	}
-
-	if !forwarded && emc != nil && emc.GetContextInfo() != nil {
-		forwarded = emc.GetContextInfo().GetIsForwarded()
 	}
 
 	return
