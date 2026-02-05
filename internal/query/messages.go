@@ -14,7 +14,8 @@ const (
 		has_media BOOLEAN DEFAULT FALSE,
 		reply_to_message_id TEXT,
 		edited BOOLEAN DEFAULT FALSE,
-		forwarded BOOLEAN DEFAULT FALSE
+		forwarded BOOLEAN DEFAULT FALSE,
+		type INTEGER DEFAULT 0
 	);
 	CREATE INDEX IF NOT EXISTS idx_messages_chat_jid ON messages(chat_jid);
 	CREATE INDEX IF NOT EXISTS idx_messages_sender_jid ON messages(sender_jid);
@@ -23,8 +24,8 @@ const (
 
 	InsertMessage = `
 	INSERT OR REPLACE INTO messages 
-	(message_id, chat_jid, sender_jid, timestamp, is_from_me, text, has_media, reply_to_message_id, edited, forwarded)
-	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	(message_id, chat_jid, sender_jid, timestamp, is_from_me, text, has_media, reply_to_message_id, edited, forwarded, type)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	UpdateMessage = `

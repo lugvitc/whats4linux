@@ -122,7 +122,6 @@ func (a *Api) Login() error {
 func (a *Api) mainEventHandler(evt any) {
 	switch v := evt.(type) {
 	case *events.Message:
-
 		parsedHTML := a.processMessageText(v.Message)
 
 		// Handle message edits: re-parse the edited content
