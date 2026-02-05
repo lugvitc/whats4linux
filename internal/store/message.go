@@ -458,6 +458,22 @@ func (ms *MessageStore) InsertMessage(info *types.MessageInfo, msg *waE2E.Messag
 		width, height                    int
 	)
 
+	var messageType mtypes.MessageType
+
+	switch {
+	case msg.PinInChatMessage != nil:
+		err := ms.runSync(func(tx *sql.Tx) error {
+			_, err := tx.Exec(query.CreatePinnedMessagesTable)
+			return err
+		})
+		if err != nil {
+			return err
+		}
+		messageType = mtypes.MessageTypeMessagePinned
+	default:
+		messageType = mtypes.MessageTypeNormal
+	}
+
 	text, fileName, replyToMessageID, forwarded, emc, mediaType, width, height = extractMessageContent(msg)
 
 	if parsedHTML != "" {
@@ -476,6 +492,7 @@ func (ms *MessageStore) InsertMessage(info *types.MessageInfo, msg *waE2E.Messag
 			replyToMessageID,
 			false,
 			forwarded,
+			messageType,
 		)
 		if err != nil {
 			return err
