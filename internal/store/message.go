@@ -140,6 +140,10 @@ func NewMessageStore() (*MessageStore, error) {
 		if err != nil {
 			return err
 		}
+		_, err = tx.Exec(query.CreatePinnedMessagesTable)
+		if err != nil {
+			return err
+		}
 		_, err = tx.Exec(query.CreateReactionsTable)
 		return err
 	})
@@ -460,14 +464,31 @@ func (ms *MessageStore) InsertMessage(info *types.MessageInfo, msg *waE2E.Messag
 
 	var messageType mtypes.MessageType
 
+	// todo: add a flush system on pin expiry
 	switch {
-	case msg.PinInChatMessage != nil:
-		err := ms.runSync(func(tx *sql.Tx) error {
-			_, err := tx.Exec(query.CreatePinnedMessagesTable)
-			return err
-		})
-		if err != nil {
-			return err
+	case msg.PinInChatMessage != nil && msg.PinInChatMessage.Key != nil:
+		pin := msg.PinInChatMessage
+		switch *pin.Type {
+		case waE2E.PinInChatMessage_PIN_FOR_ALL:
+			var dur uint32
+			if msg.GetMessageContextInfo() != nil {
+				dur = *msg.GetMessageContextInfo().MessageAddOnDurationInSecs
+			}
+			err := ms.runSync(func(tx *sql.Tx) error {
+				_, err := tx.Exec(query.InsertPinnedMessages, pin.Key.ID, info.Chat.String(), info.Sender.String(), info.Timestamp.Unix(), dur)
+				return err
+			})
+			if err != nil {
+				return err
+			}
+		case waE2E.PinInChatMessage_UNPIN_FOR_ALL:
+			// do not process the message further
+			return ms.runSync(func(tx *sql.Tx) error {
+				_, err := tx.Exec(query.DeletePinnedMessageByMessageId, pin.Key.ID)
+				return err
+			})
+		default:
+			log.Println("unknown pin type", pin.Type, "in message:", msg)
 		}
 		messageType = mtypes.MessageTypeMessagePinned
 	default:
