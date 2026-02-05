@@ -140,6 +140,10 @@ func NewMessageStore() (*MessageStore, error) {
 		if err != nil {
 			return err
 		}
+		_, err = tx.Exec(query.CreatePinnedMessagesTable)
+		if err != nil {
+			return err
+		}
 		_, err = tx.Exec(query.CreateReactionsTable)
 		return err
 	})
@@ -458,6 +462,39 @@ func (ms *MessageStore) InsertMessage(info *types.MessageInfo, msg *waE2E.Messag
 		width, height                    int
 	)
 
+	var messageType mtypes.MessageType
+
+	// todo: add a flush system on pin expiry
+	switch {
+	case msg.PinInChatMessage != nil && msg.PinInChatMessage.Key != nil:
+		pin := msg.PinInChatMessage
+		switch *pin.Type {
+		case waE2E.PinInChatMessage_PIN_FOR_ALL:
+			var dur uint32
+			if msg.GetMessageContextInfo() != nil {
+				dur = *msg.GetMessageContextInfo().MessageAddOnDurationInSecs
+			}
+			err := ms.runSync(func(tx *sql.Tx) error {
+				_, err := tx.Exec(query.InsertPinnedMessages, pin.Key.ID, info.Chat.String(), info.Sender.String(), info.Timestamp.Unix(), dur)
+				return err
+			})
+			if err != nil {
+				return err
+			}
+		case waE2E.PinInChatMessage_UNPIN_FOR_ALL:
+			// do not process the message further
+			return ms.runSync(func(tx *sql.Tx) error {
+				_, err := tx.Exec(query.DeletePinnedMessageByMessageId, pin.Key.ID)
+				return err
+			})
+		default:
+			log.Println("unknown pin type", pin.Type, "in message:", msg)
+		}
+		messageType = mtypes.MessageTypeMessagePinned
+	default:
+		messageType = mtypes.MessageTypeNormal
+	}
+
 	text, fileName, replyToMessageID, forwarded, emc, mediaType, width, height = extractMessageContent(msg)
 
 	if parsedHTML != "" {
@@ -476,6 +513,7 @@ func (ms *MessageStore) InsertMessage(info *types.MessageInfo, msg *waE2E.Messag
 			replyToMessageID,
 			false,
 			forwarded,
+			messageType,
 		)
 		if err != nil {
 			return err
@@ -942,31 +980,47 @@ func extractMessageContent(msg *waE2E.Message) (text, fileName, replyToMessageID
 		width = int(msg.GetImageMessage().GetWidth())
 		height = int(msg.GetImageMessage().GetHeight())
 		mediaType = mtypes.MediaTypeImage
+		if contextInfo := msg.GetImageMessage().GetContextInfo(); contextInfo != nil {
+			replyToMessageID = contextInfo.GetStanzaID()
+			forwarded = contextInfo.GetIsForwarded()
+		}
 	case msg.GetVideoMessage() != nil:
 		emc = msg.GetVideoMessage()
 		text = msg.GetVideoMessage().GetCaption()
 		mediaType = mtypes.MediaTypeVideo
+		if contextInfo := msg.GetVideoMessage().GetContextInfo(); contextInfo != nil {
+			replyToMessageID = contextInfo.GetStanzaID()
+			forwarded = contextInfo.GetIsForwarded()
+		}
 	case msg.GetDocumentMessage() != nil:
 		emc = msg.GetDocumentMessage()
 		text = msg.GetDocumentMessage().GetCaption()
 		fileName = msg.GetDocumentMessage().GetFileName()
 		mediaType = mtypes.MediaTypeDocument
+		if contextInfo := msg.GetDocumentMessage().GetContextInfo(); contextInfo != nil {
+			replyToMessageID = contextInfo.GetStanzaID()
+			forwarded = contextInfo.GetIsForwarded()
+		}
 	case msg.GetAudioMessage() != nil:
 		emc = msg.GetAudioMessage()
 		mediaType = mtypes.MediaTypeAudio
+		if contextInfo := msg.GetAudioMessage().GetContextInfo(); contextInfo != nil {
+			replyToMessageID = contextInfo.GetStanzaID()
+			forwarded = contextInfo.GetIsForwarded()
+		}
 	case msg.GetStickerMessage() != nil:
 		emc = msg.GetStickerMessage()
 		mediaType = mtypes.MediaTypeSticker
 		width = int(msg.GetStickerMessage().GetWidth())
 		height = int(msg.GetStickerMessage().GetHeight())
+		if contextInfo := msg.GetStickerMessage().GetContextInfo(); contextInfo != nil {
+			replyToMessageID = contextInfo.GetStanzaID()
+			forwarded = contextInfo.GetIsForwarded()
+		}
 	default:
 		if text == "" {
 			return
 		}
-	}
-
-	if !forwarded && emc != nil && emc.GetContextInfo() != nil {
-		forwarded = emc.GetContextInfo().GetIsForwarded()
 	}
 
 	return

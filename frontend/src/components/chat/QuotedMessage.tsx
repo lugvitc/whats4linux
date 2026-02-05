@@ -13,10 +13,10 @@ export function QuotedMessage({
   const [loadingName, setLoadingName] = useState<boolean>(false)
   const getContactName = useContactStore(state => state.getContactName)
   const getContactColor = useContactStore(state => state.getContactColor)
-  const quoted = contextInfo.quotedMessage || contextInfo.QuotedMessage
+  const quoted = contextInfo.quotedMessage
 
   useEffect(() => {
-    const participant = contextInfo.participant || contextInfo.Participant
+    const participant = contextInfo.participant
     if (participant) {
       let mounted = true
       setLoadingName(true)
