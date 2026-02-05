@@ -192,14 +192,14 @@ func (a *Api) SendMessage(chatJID string, content MessageContent) (string, error
 	}
 
 	var msgContent *waE2E.Message
+	contextInfo, err := a.buildQuotedContext(parsedJID, content.QuotedMessageID)
+	if err != nil {
+		log.Println("Failed to build quoted context:", err)
+		return "", err
+	}
 
 	switch content.Type {
 	case "text":
-		contextInfo, err := a.buildQuotedContext(parsedJID, content.QuotedMessageID)
-		if err != nil {
-			log.Println("Failed to build quoted context:", err)
-			return "", err
-		}
 
 		mentionedJIDs := content.Mentions
 
@@ -237,6 +237,16 @@ func (a *Api) SendMessage(chatJID string, content MessageContent) (string, error
 			JPEGThumbnail: nil, // We'll let WhatsApp generate the thumbnail
 		}
 
+		if len(content.Mentions) > 0 || contextInfo != nil {
+			if contextInfo == nil {
+				contextInfo = &waE2E.ContextInfo{}
+			}
+			if len(content.Mentions) > 0 {
+				contextInfo.MentionedJID = content.Mentions
+			}
+			imageMsg.ContextInfo = contextInfo
+		}
+
 		// Upload the image
 		uploaded, err := a.waClient.Upload(a.ctx, imageData, whatsmeow.MediaImage)
 		if err != nil {
@@ -268,6 +278,16 @@ func (a *Api) SendMessage(chatJID string, content MessageContent) (string, error
 			JPEGThumbnail: nil, // We'll let WhatsApp generate the thumbnail
 		}
 
+		if len(content.Mentions) > 0 || contextInfo != nil {
+			if contextInfo == nil {
+				contextInfo = &waE2E.ContextInfo{}
+			}
+			if len(content.Mentions) > 0 {
+				contextInfo.MentionedJID = content.Mentions
+			}
+			videoMsg.ContextInfo = contextInfo
+		}
+
 		// Upload the video
 		uploaded, err := a.waClient.Upload(a.ctx, videoData, whatsmeow.MediaVideo)
 		if err != nil {
@@ -295,6 +315,10 @@ func (a *Api) SendMessage(chatJID string, content MessageContent) (string, error
 		mimeType := "audio/ogg"
 		audioMsg := &waE2E.AudioMessage{
 			Mimetype: &mimeType,
+		}
+
+		if contextInfo != nil {
+			audioMsg.ContextInfo = contextInfo
 		}
 
 		// Upload the audio
@@ -327,6 +351,16 @@ func (a *Api) SendMessage(chatJID string, content MessageContent) (string, error
 			Mimetype: &mimeType,
 			FileName: &fileName,
 			Caption:  &content.Text,
+		}
+
+		if len(content.Mentions) > 0 || contextInfo != nil {
+			if contextInfo == nil {
+				contextInfo = &waE2E.ContextInfo{}
+			}
+			if len(content.Mentions) > 0 {
+				contextInfo.MentionedJID = content.Mentions
+			}
+			documentMsg.ContextInfo = contextInfo
 		}
 
 		// Upload the document

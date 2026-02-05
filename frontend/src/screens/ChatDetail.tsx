@@ -329,14 +329,50 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
       scrollToBottom(false)
     })
 
+    let processedText = textToSend
+    const mentionsToSend: string[] = []
+    if (selectedMentions.length > 0) {
+      const sortedMentions = [...selectedMentions].sort((a, b) => {
+        let nameA = a.full_name
+        if (!nameA) nameA = a.push_name ? `~ ${a.push_name}` : a.short || a.phno
+
+        let nameB = b.full_name
+        if (!nameB) nameB = b.push_name ? `~ ${b.push_name}` : b.short || b.phno
+
+        return nameB.length - nameA.length
+      })
+
+      for (const mention of sortedMentions) {
+        let name = mention.full_name
+        if (!name) {
+          if (mention.push_name) {
+            name = `~ ${mention.push_name}`
+          } else {
+            name = mention.short || mention.phno
+          }
+        }
+        const mentionText = `@${name}`
+
+        if (processedText.includes(mentionText)) {
+          const userPart = mention.jid.split("@")[0]
+          const replacement = `@${userPart}`
+
+          processedText = processedText.replaceAll(mentionText, replacement)
+
+          mentionsToSend.push(mention.jid)
+        }
+      }
+    }
+
     try {
       if (imageToSend) {
         const base64 = imageToSend.split(",")[1]
         await SendMessage(chatId, {
           type: "image",
           base64Data: base64,
-          text: textToSend,
+          text: processedText,
           quotedMessageId,
+          mentions: mentionsToSend,
         })
       } else if (fileToSend) {
         const reader = new FileReader()
@@ -345,48 +381,13 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
           await SendMessage(chatId, {
             type: fileTypeToSend,
             base64Data: base64,
-            text: textToSend,
+            text: processedText,
             quotedMessageId,
+            mentions: mentionsToSend,
           })
         }
         reader.readAsDataURL(fileToSend)
       } else {
-        let processedText = textToSend
-        const mentionsToSend: string[] = []
-        // mentions process here
-        if (selectedMentions.length > 0) {
-          const sortedMentions = [...selectedMentions].sort((a, b) => {
-            let nameA = a.full_name
-            if (!nameA) nameA = a.push_name ? `~ ${a.push_name}` : a.short || a.phno
-
-            let nameB = b.full_name
-            if (!nameB) nameB = b.push_name ? `~ ${b.push_name}` : b.short || b.phno
-
-            return nameB.length - nameA.length
-          })
-
-          for (const mention of sortedMentions) {
-            let name = mention.full_name
-            if (!name) {
-              if (mention.push_name) {
-                name = `~ ${mention.push_name}`
-              } else {
-                name = mention.short || mention.phno
-              }
-            }
-            const mentionText = `@${name}`
-
-            if (processedText.includes(mentionText)) {
-              const userPart = mention.jid.split("@")[0]
-              const replacement = `@${userPart}`
-
-              processedText = processedText.replaceAll(mentionText, replacement)
-
-              mentionsToSend.push(mention.jid)
-            }
-          }
-        }
-
         await SendMessage(chatId, {
           type: "text",
           text: processedText,
