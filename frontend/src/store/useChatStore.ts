@@ -82,7 +82,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         ...existingChat,
         subtitle: message,
         timestamp: timestamp || Date.now(),
-        sender: sender || existingChat.sender,
+        sender: sender !== undefined ? sender : existingChat.sender,
       })
 
       // Move this chat to the top of the list
