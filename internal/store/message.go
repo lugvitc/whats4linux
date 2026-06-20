@@ -145,6 +145,10 @@ func NewMessageStore() (*MessageStore, error) {
 			return err
 		}
 		_, err = tx.Exec(query.CreateReactionsTable)
+		if err != nil {
+			return err
+		}
+		_, err = tx.Exec(query.CreateReadReceiptsTable)
 		return err
 	})
 
