@@ -1,13 +1,11 @@
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { store } from "../../../wailsjs/go/models"
 import { DownloadImageToFile, GetContact } from "../../../wailsjs/go/api/Api"
 import { MediaContent } from "./MediaContent"
 import { QuotedMessage } from "./QuotedMessage"
-import { ReactionBubble } from "./Reactions"
 import clsx from "clsx"
 import { MessageMenu } from "./MessageMenu"
 import { ClockPendingIcon, BlueTickIcon, ForwardedIcon } from "../../assets/svgs/chat_icons"
-import { useContactStore } from "../../store/useContactStore"
 
 interface MessageItemProps {
   message: store.DecodedMessage
@@ -32,7 +30,7 @@ export function MessageItem({
   sentMediaCache,
   onReply,
   onQuotedClick,
-  highlightedMessageId,
+  highlightedMessageId
 }: MessageItemProps) {
   // console.log(message)
   const isFromMe = message.Info.IsFromMe
@@ -48,9 +46,7 @@ export function MessageItem({
   const isSticker = !!content?.stickerMessage
   const isPending = (message as any).isPending || false
   const [senderName, setSenderName] = useState("~ " + message.Info.PushName || "Unknown")
-  const [senderColor, setSenderColor] = useState<string | undefined>(undefined)
-  const getContactColor = useContactStore(state => state.getContactColor)
-  const [Reactions, setReactions] = useState(message.reactions ?? [])
+  const innerDiv = useRef<HTMLDivElement | null>(null)
 
   // Helper function to render caption with markdown
   const renderCaption = (caption: string | undefined) => {
@@ -114,17 +110,8 @@ export function MessageItem({
           }
         })
         .catch(() => {})
-      getContactColor(message.Info.Sender)
-        .then((color: string) => {
-          setSenderColor(color)
-        })
-        .catch(() => {})
     }
-  }, [message.Info.Sender, chatId, isFromMe, getContactColor])
-
-  useEffect(() => {
-    setReactions(message.reactions ?? [])
-  }, [message.Info.ID, message.reactions])
+  }, [message.Info.Sender, chatId, isFromMe])
 
   const contextInfo =
     content?.extendedTextMessage?.contextInfo ||
@@ -223,8 +210,21 @@ export function MessageItem({
 
   const hasMedia = !!(content?.imageMessage || content?.videoMessage)
 
+  const handleDoubleClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (innerDiv.current){
+      const react = innerDiv.current.getBoundingClientRect()
+      if (!isFromMe && event.clientX > react.right){
+        handleReply()
+      }
+      else if (isFromMe && event.clientX < react.left){
+        handleReply()
+      }
+    }
+    // event.stopPropagation()
+  }
+
   return (
-    <>
+    <div className="flex flex-col" onDoubleClick={handleDoubleClick}>
       <div
         className={clsx(
           "flex mb-2 group transition duration-200",
@@ -234,7 +234,7 @@ export function MessageItem({
           },
         )}
       >
-        <div
+        <div ref={innerDiv}
           className={clsx(
             "max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl rounded-lg p-2 mx-5 shadow-sm relative min-w-0",
             {
@@ -249,7 +249,9 @@ export function MessageItem({
               "bg-received-bubble-bg dark:bg-received-bubble-dark-bg text-(--color-received-bubble-text) dark:text-(--color-received-bubble-dark-text)":
                 !isFromMe && !isSticker,
             },
-          )}
+          )
+        }
+          // onDoubleClick={handleDoubleClick}
         >
           {/* Message Menu - positioned at top right corner */}
           <MessageMenu
@@ -267,9 +269,7 @@ export function MessageItem({
           />
 
           {!isFromMe && chatId.endsWith("@g.us") && (
-            <div className="text-[11px] font-semibold mb-0.5" style={{ color: senderColor }}>
-              {senderName}
-            </div>
+            <div className="text-[11px] font-semibold text-blue-500 mb-0.5">{senderName}</div>
           )}
           {message.forwarded && (
             <div className="text-[10px] flex gap-1 italic items-center opacity-60 mb-1">
@@ -282,7 +282,7 @@ export function MessageItem({
           )}
           <div className="text-sm wrap-break-words whitespace-pre-wrap">{renderContent()}</div>
           <div className="text-[10px] text-right opacity-50 mt-1 flex items-center justify-end gap-1">
-            {message.edited && <span>Edited</span>}
+            {message.edited && <span className="text-[9px] opacity-60">edited</span>}
             <span>
               {new Date(message.Info.Timestamp).toLocaleTimeString([], {
                 hour: "2-digit",
@@ -291,16 +291,9 @@ export function MessageItem({
             </span>
             {isFromMe && (isPending ? <ClockPendingIcon /> : <BlueTickIcon />)}
           </div>
-
-          {/* Reactions */}
-          {Reactions && Reactions.length > 0 && (
-            <div className={clsx("absolute -bottom-3 z-9999", isFromMe ? "right-2" : "left-2")}>
-              <ReactionBubble reactions={Reactions} isFromMe={isFromMe} />
-            </div>
-          )}
         </div>
       </div>
-    </>
+    </div>
   )
 }
 
