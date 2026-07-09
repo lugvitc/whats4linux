@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react"
 import { store } from "../../../wailsjs/go/models"
-import { DownloadImageToFile, GetContact } from "../../../wailsjs/go/api/Api"
+import { DownloadImageToFile } from "../../../wailsjs/go/api/Api"
 import { MediaContent } from "./MediaContent"
 import { QuotedMessage } from "./QuotedMessage"
 import { ReactionBubble } from "./Reactions"
@@ -34,7 +34,6 @@ export function MessageItem({
   onQuotedClick,
   highlightedMessageId,
 }: MessageItemProps) {
-  // console.log(message)
   const isFromMe = message.Info.IsFromMe
   // Debug: log every render and also when the message updates or unmounts
   // console.log(`[MessageItem] render id=${message.Info.ID} fromMe=${isFromMe} chat=${chatId}`)
@@ -47,10 +46,21 @@ export function MessageItem({
   const content = message.Content
   const isSticker = !!content?.stickerMessage
   const isPending = (message as any).isPending || false
-  const [senderName, setSenderName] = useState("~ " + message.Info.PushName || "Unknown")
-  const [senderColor, setSenderColor] = useState<string | undefined>(undefined)
-  const getContactColor = useContactStore(state => state.getContactColor)
-  const [Reactions, setReactions] = useState(message.reactions ?? [])
+  const isGroup = chatId.endsWith("@g.us")
+  // Seed sender name/color from the cache synchronously so a cached group
+  // message renders correctly on first paint and never re-renders for it.
+  const cachedSender =
+    !isFromMe && isGroup && message.Info.Sender
+      ? useContactStore.getState().contacts[message.Info.Sender]
+      : undefined
+  const [senderName, setSenderName] = useState(
+    cachedSender?.name || "~ " + message.Info.PushName || "Unknown",
+  )
+  const [senderColor, setSenderColor] = useState<string | undefined>(cachedSender?.senderColor)
+  const getSenderInfo = useContactStore(state => state.getSenderInfo)
+  // Derived directly from the message; no state/effect needed (a state+effect
+  // here forced an extra re-render per message on mount).
+  const reactions = message.reactions ?? []
 
   // Helper function to render caption with markdown
   const renderCaption = (caption: string | undefined) => {
@@ -103,28 +113,24 @@ export function MessageItem({
     // TODO: Implement delete functionality
   }
 
-  // Fetch Group Member Names (Feature #2)
+  // Fetch group member name + color from the cached store (one RPC per sender,
+  // then synchronous) so scrolling a group chat doesn't fire an RPC per row.
   useEffect(() => {
-    if (!isFromMe && message.Info.Sender && chatId.endsWith("@g.us")) {
-      // GetContact now accepts a string JID directly
-      GetContact(message.Info.Sender)
-        .then((contact: any) => {
-          if (contact?.full_name || contact?.push_name) {
-            setSenderName(contact.full_name || "~ " + contact.push_name)
-          }
-        })
-        .catch(() => {})
-      getContactColor(message.Info.Sender)
-        .then((color: string) => {
-          setSenderColor(color)
-        })
-        .catch(() => {})
+    if (isFromMe || !isGroup || !message.Info.Sender) return
+    // Already seeded from cache above — no fetch, no re-render.
+    if (useContactStore.getState().contacts[message.Info.Sender]) return
+    let cancelled = false
+    getSenderInfo(message.Info.Sender)
+      .then(({ name, color }) => {
+        if (cancelled) return
+        if (name) setSenderName(name)
+        if (color) setSenderColor(color)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
     }
-  }, [message.Info.Sender, chatId, isFromMe, getContactColor])
-
-  useEffect(() => {
-    setReactions(message.reactions ?? [])
-  }, [message.Info.ID, message.reactions])
+  }, [message.Info.Sender, isGroup, isFromMe, getSenderInfo])
 
   const contextInfo =
     content?.extendedTextMessage?.contextInfo ||
@@ -218,7 +224,6 @@ export function MessageItem({
     }
     // Note: senderKeyDistributionMessage and reactionMessage are not stored in messages.db
     // Reactions are stored separately and shown via the Reactions field
-    console.log("Unsupported message content:", content)
     return <span className="italic opacity-50 text-xs">Unsupported Message Type</span>
   }
 
@@ -237,7 +242,7 @@ export function MessageItem({
       >
         <div
           className={clsx(
-            "max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl rounded-lg p-2 mx-5 shadow-sm relative min-w-0",
+            "max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl rounded-lg p-2 mx-5 relative min-w-0",
             {
               "w-min": hasMedia,
               "bg-transparent shadow-none": isSticker,
@@ -294,9 +299,9 @@ export function MessageItem({
           </div>
 
           {/* Reactions */}
-          {Reactions && Reactions.length > 0 && (
+          {reactions.length > 0 && (
             <div className={clsx("absolute -bottom-3 z-9999", isFromMe ? "right-2" : "left-2")}>
-              <ReactionBubble reactions={Reactions} isFromMe={isFromMe} />
+              <ReactionBubble reactions={reactions} isFromMe={isFromMe} />
             </div>
           )}
         </div>

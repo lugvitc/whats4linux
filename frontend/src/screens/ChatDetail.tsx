@@ -27,6 +27,9 @@ interface ChatDetailProps {
 }
 
 const PAGE_SIZE = 50
+// Virtuoso needs a stable, large starting index so it can decrement as older
+// messages are prepended, keeping the scroll position anchored.
+const START_INDEX = 1_000_000
 
 export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailProps) {
   const {
@@ -58,6 +61,15 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
   const [isReady, setIsReady] = useState(false)
   const [isAtBottom, setIsAtBottom] = useState(true)
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
+  const [firstItemIndex, setFirstItemIndex] = useState(START_INDEX)
+
+  // Reset the Virtuoso anchor synchronously when switching chats so the fresh
+  // list (see key={chatId} on <MessageList>) starts from a clean base.
+  const anchorChatIdRef = useRef(chatId)
+  if (anchorChatIdRef.current !== chatId) {
+    anchorChatIdRef.current = chatId
+    setFirstItemIndex(START_INDEX)
+  }
 
   const messageListRef = useRef<MessageListHandle>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -149,25 +161,14 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
     const oldestMessage = currentMessages[0]
     const beforeTimestamp = Math.floor(new Date(oldestMessage.Info.Timestamp).getTime() / 1000)
 
-    // Store current scroll position before loading
-    const oldScrollHeight = messageListRef.current?.getScrollHeight() || 0
-    const oldScrollTop = messageListRef.current?.getScrollTop() || 0
-
     try {
       const msgs = await FetchMessagesPaged(chatId, PAGE_SIZE, beforeTimestamp)
       if (msgs && msgs.length > 0) {
+        // Decrement the Virtuoso anchor by the number prepended so it keeps the
+        // current scroll position instead of jumping. Virtuoso handles the rest.
+        setFirstItemIndex(prev => prev - msgs.length)
         prependMessages(chatId, msgs)
         setHasMore(msgs.length >= PAGE_SIZE)
-
-        // Adjust scroll position after prepending
-        requestAnimationFrame(() => {
-          const newScrollHeight = messageListRef.current?.getScrollHeight() || 0
-          const scrollAdjustment = newScrollHeight - oldScrollHeight
-          if (messageListRef.current && scrollAdjustment > 0) {
-            const newScrollTop = oldScrollTop + scrollAdjustment
-            messageListRef.current.setScrollTop(newScrollTop)
-          }
-        })
       } else {
         setHasMore(false)
       }
@@ -455,12 +456,6 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
         ease: easeShowRef.current,
       })
     }
-    if (isAtBottom) {
-      const currentMessages = messages[chatId] || []
-      if (currentMessages.length > PAGE_SIZE * 2) {
-        setMessages(chatId, currentMessages.slice(-(currentMessages.length / 2)))
-      }
-    }
   }, [isAtBottom])
 
   return (
@@ -474,6 +469,12 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
         />
 
         <div className="flex-1 relative overflow-hidden">
+          {/* Static chat wallpaper: painted once behind the list instead of
+              scrolling (and repainting) with it — big scroll-perf win. */}
+          <div
+            className="absolute inset-0 bg-repeat pointer-events-none z-0"
+            style={{ backgroundImage: "url('/assets/images/bg-chat-tile-dark.png')" }}
+          />
           {(initialLoad || !isReady) && (
             <div className="absolute inset-0 flex items-center justify-center bg-[#efeae2] dark:bg-dark-bg z-50">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500" />
@@ -495,11 +496,13 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
             </svg>
           </button>
 
-          <div className={clsx("h-full", (!isReady || initialLoad) && "invisible")}>
+          <div className={clsx("relative z-10 h-full", (!isReady || initialLoad) && "invisible")}>
             <MessageList
+              key={chatId}
               ref={messageListRef}
               chatId={chatId}
               messages={chatMessages}
+              firstItemIndex={firstItemIndex}
               sentMediaCache={sentMediaCache}
               onReply={setReplyingTo}
               onQuotedClick={handleQuotedClick}

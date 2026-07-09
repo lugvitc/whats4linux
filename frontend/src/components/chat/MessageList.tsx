@@ -1,10 +1,14 @@
-import { forwardRef, useImperativeHandle, useRef, useCallback, memo, useEffect } from "react"
+import { forwardRef, useImperativeHandle, useRef, memo } from "react"
+import { Virtuoso, type VirtuosoHandle } from "react-virtuoso"
 import { store } from "../../../wailsjs/go/models"
 import { MessageItem } from "./MessageItem"
 
 interface MessageListProps {
   chatId: string
   messages: store.DecodedMessage[]
+  // Virtuoso anchor for prepending older messages without a scroll jump: it
+  // decreases by the number of messages prepended (see ChatDetail).
+  firstItemIndex: number
   sentMediaCache: React.MutableRefObject<Map<string, string>>
   onReply?: (message: store.DecodedMessage) => void
   onQuotedClick?: (messageId: string) => void
@@ -18,9 +22,6 @@ interface MessageListProps {
 export interface MessageListHandle {
   scrollToBottom: (behavior?: "auto" | "smooth") => void
   scrollToMessage: (messageId: string) => void
-  getScrollHeight: () => number
-  getScrollTop: () => number
-  setScrollTop: (top: number) => void
 }
 
 const MemoizedMessageItem = memo(MessageItem)
@@ -29,6 +30,7 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
   {
     chatId,
     messages,
+    firstItemIndex,
     sentMediaCache,
     onReply,
     onQuotedClick,
@@ -40,104 +42,52 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
   },
   ref,
 ) {
-  const containerRef = useRef<HTMLDivElement | null>(null)
-  const loadMoreTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const virtuosoRef = useRef<VirtuosoHandle>(null)
 
-  const scrollToBottom = useCallback((behavior: "auto" | "smooth" = "smooth") => {
-    const el = containerRef.current
-    if (el) {
-      const top = el.scrollHeight - el.clientHeight
-      try {
-        el.scrollTo({ top, behavior })
-      } catch {
-        el.scrollTop = top
-      }
-    }
-  }, [])
-
-  const scrollToMessage = useCallback((messageId: string) => {
-    const el = containerRef.current
-    if (!el) return
-
-    const messageElement = el.querySelector(`[data-message-id="${messageId}"]`) as HTMLElement
-    if (messageElement) {
-      messageElement.scrollIntoView({ behavior: "smooth", block: "center" })
-    }
-  }, [])
-
-  const getScrollHeight = useCallback(() => {
-    const el = containerRef.current
-    return el ? el.scrollHeight : 0
-  }, [])
-
-  const getScrollTop = useCallback(() => {
-    const el = containerRef.current
-    return el ? el.scrollTop : 0
-  }, [])
-
-  const setScrollTop = useCallback((top: number) => {
-    const el = containerRef.current
-    if (el) {
-      el.scrollTop = top
-    }
-  }, [])
-
-  useImperativeHandle(ref, () => ({
-    scrollToBottom,
-    scrollToMessage,
-    getScrollHeight,
-    getScrollTop,
-    setScrollTop,
-  }))
-
-  useEffect(() => {
-    return () => {
-      if (loadMoreTimeoutRef.current) {
-        clearTimeout(loadMoreTimeoutRef.current)
-      }
-    }
-  }, [])
-
-  const onScroll = useCallback(
-    (e: React.UIEvent<HTMLDivElement>) => {
-      const el = e.currentTarget
-
-      // Clear existing timeout
-      if (loadMoreTimeoutRef.current) {
-        clearTimeout(loadMoreTimeoutRef.current)
-      }
-
-      // Check if we should load more
-      const shouldLoadMore = el.scrollTop === 0 && !isLoading && hasMore && onLoadMore
-
-      if (shouldLoadMore) {
-        // Set timeout to load more after scrolling stops
-        loadMoreTimeoutRef.current = setTimeout(() => {
-          onLoadMore()
-          loadMoreTimeoutRef.current = null
-        }, 300) // Wait 300ms after scrolling stops
-      }
-
-      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 5
-      onAtBottomChange?.(atBottom)
-    },
-    [isLoading, hasMore, onLoadMore, onAtBottomChange],
+  useImperativeHandle(
+    ref,
+    () => ({
+      scrollToBottom: (behavior: "auto" | "smooth" = "smooth") => {
+        virtuosoRef.current?.scrollToIndex({ index: "LAST", align: "end", behavior })
+      },
+      scrollToMessage: (messageId: string) => {
+        const index = messages.findIndex(m => m.Info.ID === messageId)
+        if (index >= 0) {
+          virtuosoRef.current?.scrollToIndex({ index, align: "center", behavior: "smooth" })
+        }
+      },
+    }),
+    [messages],
   )
 
   return (
-    <div
-      ref={containerRef}
-      onScroll={onScroll}
-      className="h-full overflow-y-auto overflow-x-hidden bg-repeat virtuoso-scroller"
-      style={{ backgroundImage: "url('/assets/images/bg-chat-tile-dark.png')" }}
-    >
-      <div className="flex justify-center py-4">
-        {isLoading ? (
-          <div className="animate-spin h-5 w-5 border-2 border-green-500 rounded-full border-t-transparent" />
-        ) : null}
-      </div>
-      {messages.map(msg => (
-        <div key={msg.Info.ID} data-message-id={msg.Info.ID} className="py-1 overflow-x-hidden">
+    <Virtuoso
+      ref={virtuosoRef}
+      className="h-full virtuoso-scroller"
+      data={messages}
+      firstItemIndex={firstItemIndex}
+      initialTopMostItemIndex={Math.max(0, messages.length - 1)}
+      // A modest buffer keeps rows ready just ahead of the viewport without
+      // mounting so many expensive rows that scrolling itself gets costly.
+      increaseViewportBy={{ top: 200, bottom: 200 }}
+      // Fires when the user scrolls to the very top -> load older messages.
+      startReached={() => {
+        if (hasMore && !isLoading) onLoadMore?.()
+      }}
+      atBottomStateChange={atBottom => onAtBottomChange?.(atBottom)}
+      // Stick to the bottom for new messages only when already at the bottom.
+      followOutput={atBottom => (atBottom ? "smooth" : false)}
+      computeItemKey={(_index, msg) => msg?.Info?.ID ?? String(_index)}
+      components={{
+        Header: () =>
+          isLoading ? (
+            <div className="flex justify-center py-4">
+              <div className="animate-spin h-5 w-5 border-2 border-green-500 rounded-full border-t-transparent" />
+            </div>
+          ) : null,
+      }}
+      itemContent={(_index, msg) => (
+        <div data-message-id={msg.Info.ID} className="py-1 overflow-x-hidden">
           <MemoizedMessageItem
             message={msg}
             chatId={chatId}
@@ -147,7 +97,7 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
             highlightedMessageId={highlightedMessageId}
           />
         </div>
-      ))}
-    </div>
+      )}
+    />
   )
 })

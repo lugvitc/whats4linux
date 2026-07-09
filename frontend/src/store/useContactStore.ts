@@ -6,6 +6,7 @@ interface ContactStore {
   contacts: Record<string, { name: string; senderColor: string; timestamp: number }>
   getContactName: (jid: any) => Promise<string>
   getContactColor: (jid: any) => Promise<string>
+  getSenderInfo: (jid: string) => Promise<{ name: string; color: string }>
   disposeCache: () => void
 }
 
@@ -58,6 +59,29 @@ export const useContactStore = create<ContactStore>()(
         return senderColor
       } catch {
         return "#2b7fff"
+      }
+    },
+
+    // Cached name+color for a message sender, keyed by the raw JID so repeated
+    // renders while scrolling a group chat don't fire a GetContact/GetJIDUser
+    // RPC per message. One fetch per sender, then synchronous cache hits.
+    getSenderInfo: async (jid: string) => {
+      const cached = get().contacts[jid]
+      if (cached) return { name: cached.name, color: cached.senderColor }
+      try {
+        const contact = await GetContact(jid)
+        const name = contact.full_name
+          ? contact.full_name
+          : contact.push_name
+            ? "~ " + contact.push_name
+            : ""
+        const color = await GetProfileColor(jid)
+        set(state => {
+          state.contacts[jid] = { name, senderColor: color, timestamp: Date.now() }
+        })
+        return { name, color }
+      } catch {
+        return { name: "", color: "#2b7fff" }
       }
     },
 
