@@ -241,6 +241,10 @@ func (a *Api) mainEventHandler(evt any) {
 			log.Println("Messages DB migration completed successfully")
 			runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
 		}
+	case *events.HistorySync:
+		// whatsmeow delivers past conversations here after linking. Reuse the
+		// same storage path as live messages so chats/history populate the UI.
+		a.processHistorySync(v)
 	case *events.Disconnected:
 		a.waClient.SendPresence(a.ctx, types.PresenceUnavailable)
 	case *events.Receipt:
@@ -252,4 +256,40 @@ func (a *Api) mainEventHandler(evt any) {
 		// Ignore other events for now
 	}
 
+}
+
+// processHistorySync stores the messages contained in a whatsmeow HistorySync
+// event. WhatsApp sends these in several batches after a device is linked
+// (bootstrap, recent, full). Each conversation's WebMessageInfo entries are
+// converted into the same *events.Message shape that live messages use, then
+// persisted through the existing MessageStore so the chat list and history
+// render exactly like incoming messages do.
+func (a *Api) processHistorySync(v *events.HistorySync) {
+	conversations := v.Data.GetConversations()
+	if len(conversations) == 0 {
+		return
+	}
+	stored := 0
+	for _, conv := range conversations {
+		chatJID, err := types.ParseJID(conv.GetID())
+		if err != nil {
+			continue
+		}
+		for _, histMsg := range conv.GetMessages() {
+			webMsg := histMsg.GetMessage()
+			if webMsg == nil {
+				continue
+			}
+			parsedMsg, err := a.waClient.ParseWebMessage(chatJID, webMsg)
+			if err != nil || parsedMsg.Message == nil {
+				continue
+			}
+			parsedHTML := a.processMessageText(parsedMsg.Message)
+			if a.messageStore.ProcessMessageEvent(a.ctx, a.waClient.Store.LIDs, parsedMsg, parsedHTML) != "" {
+				stored++
+			}
+		}
+	}
+	log.Printf("History sync: stored %d messages from %d conversations", stored, len(conversations))
+	runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
 }
