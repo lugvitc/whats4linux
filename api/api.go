@@ -327,6 +327,12 @@ func (a *Api) processHistorySync(v *events.HistorySync) {
 			if err != nil || parsedMsg.Message == nil {
 				continue
 			}
+			// ParseWebMessage doesn't unwrap containers (ephemeral/view-once)
+			// like the live path does, so do it here or the content is lost.
+			parsedMsg.Message = store.UnwrapMessage(parsedMsg.Message)
+			if parsedMsg.Message == nil {
+				continue
+			}
 			parsedHTML := a.processMessageText(parsedMsg.Message)
 			if a.messageStore.ProcessMessageEvent(a.ctx, a.waClient.Store.LIDs, parsedMsg, parsedHTML) != "" {
 				stored++

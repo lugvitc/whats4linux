@@ -260,6 +260,32 @@ func openDB() (*sql.DB, error) {
 	return db, nil
 }
 
+// UnwrapMessage peels off container messages (ephemeral / view-once /
+// device-sent / document-with-caption) to reach the real content. whatsmeow
+// does this for live messages, but not for history-sync (ParseWebMessage),
+// which otherwise leaves disappearing-message content looking "unsupported".
+func UnwrapMessage(m *waE2E.Message) *waE2E.Message {
+	for m != nil {
+		switch {
+		case m.GetEphemeralMessage().GetMessage() != nil:
+			m = m.GetEphemeralMessage().GetMessage()
+		case m.GetViewOnceMessage().GetMessage() != nil:
+			m = m.GetViewOnceMessage().GetMessage()
+		case m.GetViewOnceMessageV2().GetMessage() != nil:
+			m = m.GetViewOnceMessageV2().GetMessage()
+		case m.GetViewOnceMessageV2Extension().GetMessage() != nil:
+			m = m.GetViewOnceMessageV2Extension().GetMessage()
+		case m.GetDeviceSentMessage().GetMessage() != nil:
+			m = m.GetDeviceSentMessage().GetMessage()
+		case m.GetDocumentWithCaptionMessage().GetMessage() != nil:
+			m = m.GetDocumentWithCaptionMessage().GetMessage()
+		default:
+			return m
+		}
+	}
+	return m
+}
+
 // ExtractMessageText extracts a text representation from a WhatsApp message
 func ExtractMessageText(msg *waE2E.Message) string {
 	if msg.GetConversation() != "" {
@@ -483,6 +509,7 @@ func (ms *MessageStore) ProcessMessageEvent(ctx context.Context, sd store.LIDSto
 
 // InsertMessage inserts a new message into messages.db
 func (ms *MessageStore) InsertMessage(info *types.MessageInfo, msg *waE2E.Message, parsedHTML string) error {
+	msg = UnwrapMessage(msg)
 	var (
 		text, fileName, replyToMessageID string
 		forwarded                        = false
