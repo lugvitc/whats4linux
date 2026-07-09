@@ -23,7 +23,9 @@ This document outlines how to get started and what we expect from contributors.
 - Node.js **20.19.6+**
 - Wails v2
 - Platform dependencies:
-  - **Linux**: `gtk3`, `webkit2gtk`
+  - **Linux**: `gtk3`, `webkit2gtk`, and `gst-plugins-good` (runtime — required for
+    audio/video playback; WebKitGTK's media pipeline needs it, and without it the
+    web process crashes when a message with media is opened)
   - **Windows / macOS**: follow Wails platform setup
 
 Refer to the official Wails documentation for platform-specific setup.
