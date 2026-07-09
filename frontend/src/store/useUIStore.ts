@@ -15,6 +15,10 @@ interface UIStore {
   setOnlineStatus: (userId: string, isOnline: boolean) => void
   addNotification: (message: string) => number
   removeNotification: (id: number) => void
+  lightboxSrc: string | null
+  lightboxKind: "image" | "video"
+  openLightbox: (src: string, kind?: "image" | "video") => void
+  closeLightbox: () => void
 }
 
 export const useUIStore = create<UIStore>(set => ({
@@ -24,6 +28,11 @@ export const useUIStore = create<UIStore>(set => ({
   typingIndicators: {},
   onlineStatus: {},
   notifications: [],
+
+  lightboxSrc: null,
+  lightboxKind: "image",
+  openLightbox: (src, kind = "image") => set({ lightboxSrc: src, lightboxKind: kind }),
+  closeLightbox: () => set({ lightboxSrc: null }),
 
   toggleSidebar: () => set(state => ({ sidebarOpen: !state.sidebarOpen })),
   setSidebarOpen: open => set({ sidebarOpen: open }),

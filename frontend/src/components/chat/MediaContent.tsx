@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react"
 import { store } from "../../../wailsjs/go/models"
 import { GetCachedImage, DownloadMedia, GetVideoThumbnail } from "../../../wailsjs/go/api/Api"
+import { useUIStore } from "../../store"
 
 // TODO: fix word wrap for longer words in content
 
@@ -32,6 +33,7 @@ export function MediaContent({
   const [thumbnailSrc, setThumbnailSrc] = useState<string | null>(null)
   const gifLoopsRef = useRef(0)
   const placeholderRef = useRef<HTMLDivElement | null>(null)
+  const openLightbox = useUIStore(s => s.openLightbox)
 
   const loadFromCache = async (): Promise<string | null> => {
     if (loading) return null
@@ -54,6 +56,26 @@ export function MediaContent({
       // DownloadMedia returns a ready-to-use data URL with the correct MIME.
       const dataUrl = await DownloadMedia(chatId, message.Info.ID)
       setMediaSrc(dataUrl)
+    } catch (e) {
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Regular videos play full-screen in the lightbox (keeps the chat thumbnail).
+  // The downloaded data URL is cached in a ref so reopening doesn't re-download.
+  const videoDataRef = useRef<string>("")
+  const openVideo = async () => {
+    if (videoDataRef.current) {
+      openLightbox(videoDataRef.current, "video")
+      return
+    }
+    if (loading) return
+    setLoading(true)
+    try {
+      const dataUrl = await DownloadMedia(chatId, message.Info.ID)
+      videoDataRef.current = dataUrl
+      openLightbox(dataUrl, "video")
     } catch (e) {
     } finally {
       setLoading(false)
@@ -154,7 +176,14 @@ export function MediaContent({
                 : "object-contain w-48.75 h-48.75"
             }
             alt="media"
-            onClick={type === "image" && onImageClick ? () => onImageClick(mediaSrc) : undefined}
+            onClick={
+              type === "image"
+                ? () => {
+                    onImageClick?.(mediaSrc)
+                    openLightbox(mediaSrc)
+                  }
+                : undefined
+            }
           />
           {type === "image" && showDownloadButton && onDownload && (
             <button
@@ -209,7 +238,7 @@ export function MediaContent({
     return (
       <div
         ref={placeholderRef}
-        onClick={handleDownload}
+        onClick={openVideo}
         className="relative w-64 h-64 rounded-lg overflow-hidden bg-gray-300 dark:bg-gray-800 flex items-center justify-center cursor-pointer bg-cover bg-center"
         style={thumbnailSrc ? { backgroundImage: `url(${thumbnailSrc})` } : undefined}
       >

@@ -250,3 +250,10 @@ a {
   cursor: pointer;
   word-break: break-all;
 }
+
+/* WebKitGTK's native <video> fullscreen button opens a broken black view, and
+   controlsList="nofullscreen" isn't honored — hide it via the WebKit pseudo-
+   element. The app's lightbox already provides a full-viewport view. */
+video::-webkit-media-controls-fullscreen-button {
+  display: none !important;
+}
