@@ -13,14 +13,26 @@ const (
 		file_enc_sha256 BLOB,
 		width INTEGER,
 		height INTEGER,
-		file_name TEXT
+		file_name TEXT,
+		gif_playback INTEGER DEFAULT 0
 	);
+	`
+
+	// AddGifPlaybackColumn migrates existing message_media tables that predate
+	// the gif_playback column. SQLite has no ADD COLUMN IF NOT EXISTS, so the
+	// caller ignores the "duplicate column" error on subsequent runs.
+	AddGifPlaybackColumn = `
+	ALTER TABLE message_media ADD COLUMN gif_playback INTEGER DEFAULT 0;
 	`
 
 	InsertMessageMedia = `
 	INSERT OR REPLACE INTO message_media
-	(message_id, type, url, mimetype, direct_path, media_key, file_sha256, file_enc_sha256, width, height, file_name)
-	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+	(message_id, type, url, mimetype, direct_path, media_key, file_sha256, file_enc_sha256, width, height, file_name, gif_playback)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+	`
+
+	SelectGifPlaybackByMessageID = `
+	SELECT gif_playback FROM message_media WHERE message_id = ?;
 	`
 
 	UpdateMessageMediaByMessageID = `

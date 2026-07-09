@@ -159,6 +159,7 @@ export function MessageItem({
             message={message}
             type="video"
             chatId={chatId}
+            isGif={!!content.videoMessage.gifPlayback}
             sentMediaCache={sentMediaCache}
           />
           {renderCaption(content.videoMessage.caption)}

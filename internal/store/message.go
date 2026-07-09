@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/lugvitc/whats4linux/internal/misc"
@@ -83,6 +84,7 @@ type ExtendedTextContent struct {
 type MediaMessageContent struct {
 	Caption     string       `json:"caption,omitempty"`
 	Mimetype    string       `json:"mimetype,omitempty"`
+	GifPlayback bool         `json:"gifPlayback,omitempty"`
 	ContextInfo *ContextInfo `json:"contextInfo,omitempty"`
 }
 
@@ -139,6 +141,11 @@ func NewMessageStore() (*MessageStore, error) {
 		_, err = tx.Exec(query.CreateMessageMediaTable)
 		if err != nil {
 			return err
+		}
+		// Migrate pre-existing tables: add gif_playback if missing. Ignore the
+		// "duplicate column name" error that occurs once the column exists.
+		if _, aerr := tx.Exec(query.AddGifPlaybackColumn); aerr != nil && !strings.Contains(aerr.Error(), "duplicate column") {
+			return aerr
 		}
 		_, err = tx.Exec(query.CreatePinnedMessagesTable)
 		if err != nil {
@@ -501,6 +508,10 @@ func (ms *MessageStore) InsertMessage(info *types.MessageInfo, msg *waE2E.Messag
 
 	text, fileName, replyToMessageID, forwarded, emc, mediaType, width, height = extractMessageContent(msg)
 
+	// gifPlayback marks a video that should loop like a GIF. GetVideoMessage is
+	// nil-safe and returns false for non-video messages.
+	gifPlayback := msg.GetVideoMessage().GetGifPlayback()
+
 	if parsedHTML != "" {
 		text = parsedHTML
 	}
@@ -537,6 +548,7 @@ func (ms *MessageStore) InsertMessage(info *types.MessageInfo, msg *waE2E.Messag
 			emc.GetFileEncSHA256(),
 			width, height,
 			fileName,
+			gifPlayback,
 		)
 		return err
 	})
@@ -1102,7 +1114,7 @@ func (ms *MessageStore) GetDecodedMessagesPaged(chatJID string, beforeTimestamp 
 		}
 
 		// Populate Content for frontend rendering
-		msg.Content = ms.buildDecodedContent(chatJID, text.String, msg.ReplyToMessageID, fileName.String, msg.Type)
+		msg.Content = ms.buildDecodedContent(chatJID, msgId, text.String, msg.ReplyToMessageID, fileName.String, msg.Type)
 
 		messages = append(messages, msg)
 	}
@@ -1112,7 +1124,7 @@ func (ms *MessageStore) GetDecodedMessagesPaged(chatJID string, beforeTimestamp 
 
 // buildDecodedContent creates a DecodedMessageContent from DecodedMessage fields
 func (ms *MessageStore) buildDecodedContent(
-	chatJID, text, replyToMessageId, fileName string,
+	chatJID, messageID, text, replyToMessageId, fileName string,
 	mediaType mtypes.MediaType,
 ) *DecodedMessageContent {
 	content := &DecodedMessageContent{}
@@ -1155,6 +1167,7 @@ func (ms *MessageStore) buildDecodedContent(
 	case mtypes.MediaTypeVideo:
 		content.VideoMessage = &MediaMessageContent{
 			Caption:     text,
+			GifPlayback: ms.isGifPlayback(messageID),
 			ContextInfo: contextInfo,
 		}
 	case mtypes.MediaTypeAudio:
@@ -1176,6 +1189,19 @@ func (ms *MessageStore) buildDecodedContent(
 	}
 
 	return content
+}
+
+// isGifPlayback reports whether a video message was flagged as GIF playback
+// (short, looping, muted). Missing rows / older messages default to false.
+func (ms *MessageStore) isGifPlayback(messageID string) bool {
+	if messageID == "" {
+		return false
+	}
+	var gif sql.NullBool
+	if err := ms.db.QueryRow(query.SelectGifPlaybackByMessageID, messageID).Scan(&gif); err != nil {
+		return false
+	}
+	return gif.Bool
 }
 
 // GetDecodedMessage returns a single decoded message from messages.db
@@ -1238,7 +1264,7 @@ func (ms *MessageStore) GetDecodedMessage(chatJID string, messageID string) (*De
 	}
 
 	// Populate Content for frontend rendering
-	msg.Content = ms.buildDecodedContent(chatJID, text.String, msg.ReplyToMessageID, fileName.String, msg.Type)
+	msg.Content = ms.buildDecodedContent(chatJID, messageID, text.String, msg.ReplyToMessageID, fileName.String, msg.Type)
 
 	return &msg, nil
 }
@@ -1302,7 +1328,7 @@ func (ms *MessageStore) GetDecodedChatList() ([]DecodedMessage, error) {
 		}
 
 		// Populate Content for frontend rendering
-		msg.Content = ms.buildDecodedContent(chat, text.String, msg.ReplyToMessageID, fileName.String, msg.Type)
+		msg.Content = ms.buildDecodedContent(chat, messageId, text.String, msg.ReplyToMessageID, fileName.String, msg.Type)
 
 		messages = append(messages, msg)
 	}
