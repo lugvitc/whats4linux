@@ -242,3 +242,11 @@ a {
   -webkit-font-smoothing: subpixel-antialiased;
   image-rendering: auto;
 }
+
+/* Clickable links inside message text (opened in system browser via App.tsx). */
+.msg-link {
+  color: #53bdeb;
+  text-decoration: underline;
+  cursor: pointer;
+  word-break: break-all;
+}

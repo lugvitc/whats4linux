@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { Login, GetCustomCSS, GetCustomJS, SetWindowFocused } from "../wailsjs/go/api/Api"
-import { EventsOn } from "../wailsjs/runtime/runtime"
+import { EventsOn, BrowserOpenURL } from "../wailsjs/runtime/runtime"
 import QRCode from "qrcode"
 import { ChatListScreen } from "./screens/ChatScreen"
 import { LoginScreen } from "./screens/LoginScreen"
@@ -32,6 +32,22 @@ function App() {
       }
     }
   }, [theme, loaded])
+
+  // Open links inside message text in the system browser instead of navigating
+  // the app's webview. Links are rendered as <a class="msg-link"> by the backend.
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null
+      const anchor = target?.closest?.("a.msg-link") as HTMLAnchorElement | null
+      if (anchor) {
+        e.preventDefault()
+        const href = anchor.getAttribute("href")
+        if (href) BrowserOpenURL(href)
+      }
+    }
+    document.addEventListener("click", onClick)
+    return () => document.removeEventListener("click", onClick)
+  }, [])
 
   // Keep the backend informed of window focus so it only notifies when the
   // window is in the background.

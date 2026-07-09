@@ -1,12 +1,39 @@
 package markdown
 
-// TODO :  URL parsing, triple backtick blocks
+// TODO :  triple backtick blocks
 import (
 	"html"
+	"regexp"
 	"strings"
 	"unicode"
 	"unicode/utf8"
 )
+
+var urlRE = regexp.MustCompile(`https?://[^\s<]+|www\.[^\s<]+`)
+
+// linkifyAndEscape HTML-escapes plain text and wraps any URLs in anchor tags
+// (class msg-link so the frontend can open them in the system browser).
+func linkifyAndEscape(s string) string {
+	var out strings.Builder
+	last := 0
+	for _, loc := range urlRE.FindAllStringIndex(s, -1) {
+		out.WriteString(html.EscapeString(s[last:loc[0]]))
+		raw := s[loc[0]:loc[1]]
+		// Trim trailing punctuation that's usually sentence punctuation, not URL.
+		trimmed := strings.TrimRight(raw, ".,!?;:)")
+		trailing := raw[len(trimmed):]
+		href := trimmed
+		if strings.HasPrefix(trimmed, "www.") {
+			href = "https://" + trimmed
+		}
+		out.WriteString(`<a href="` + html.EscapeString(href) +
+			`" class="msg-link" rel="noreferrer noopener">` + html.EscapeString(trimmed) + `</a>`)
+		out.WriteString(html.EscapeString(trailing))
+		last = loc[1]
+	}
+	out.WriteString(html.EscapeString(s[last:]))
+	return out.String()
+}
 
 var Tokens = map[string]string{
 	"*": "b",
@@ -37,7 +64,7 @@ func ParseInline(s string) string {
 
 	flushPlain := func() {
 		if buf.Len() > 0 {
-			out.WriteString(html.EscapeString(buf.String()))
+			out.WriteString(linkifyAndEscape(buf.String()))
 			buf.Reset()
 		}
 	}
@@ -99,13 +126,13 @@ func ParseInline(s string) string {
 		content := buf.String()[openPos+len(active) : lastClose]
 		after := buf.String()[lastClose+len(active):]
 
-		out.WriteString(html.EscapeString(before))
+		out.WriteString(linkifyAndEscape(before))
 		out.WriteString(openTag(Tokens[active]))
 		out.WriteString(html.EscapeString(content))
 		out.WriteString(closeTag(Tokens[active]))
-		out.WriteString(html.EscapeString(after))
+		out.WriteString(linkifyAndEscape(after))
 	} else {
-		out.WriteString(html.EscapeString(buf.String()))
+		out.WriteString(linkifyAndEscape(buf.String()))
 	}
 
 	return out.String()
