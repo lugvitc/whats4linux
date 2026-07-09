@@ -181,6 +181,31 @@ func (a *Api) buildQuotedContext(chatJID types.JID, quotedMessageID string) (*wa
 	return contextInfo, nil
 }
 
+// SendReaction reacts to a message with an emoji (empty emoji removes the
+// reaction). senderJID is the original message's sender; empty means our own.
+func (a *Api) SendReaction(chatJID, senderJID, messageID, emoji string) error {
+	if a.waClient.Store.ID == nil {
+		return fmt.Errorf("not logged in")
+	}
+	chat, err := types.ParseJID(chatJID)
+	if err != nil {
+		return err
+	}
+	sender := *a.waClient.Store.ID
+	if senderJID != "" {
+		if s, perr := types.ParseJID(senderJID); perr == nil {
+			sender = s
+		}
+	}
+	reactionMsg := a.waClient.BuildReaction(chat, sender, messageID, emoji)
+	if _, err := a.waClient.SendMessage(a.ctx, chat, reactionMsg); err != nil {
+		return err
+	}
+	// Persist our own reaction locally so it survives a reload.
+	_ = a.messageStore.AddReactionToMessage(messageID, emoji, a.waClient.Store.ID.String())
+	return nil
+}
+
 func (a *Api) SendMessage(chatJID string, content MessageContent) (string, error) {
 	if a.waClient.Store.ID == nil {
 		return "", fmt.Errorf("client not logged in")

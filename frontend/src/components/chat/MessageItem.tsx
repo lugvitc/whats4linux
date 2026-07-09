@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, lazy, Suspense } from "react"
+import emojiData from "@emoji-mart/data"
 import { store } from "../../../wailsjs/go/models"
-import { DownloadImageToFile } from "../../../wailsjs/go/api/Api"
+import { DownloadImageToFile, SendReaction } from "../../../wailsjs/go/api/Api"
 import { MediaContent } from "./MediaContent"
 import { QuotedMessage } from "./QuotedMessage"
 import { ReactionBubble } from "./Reactions"
@@ -9,6 +10,11 @@ import clsx from "clsx"
 import { MessageMenu } from "./MessageMenu"
 import { ClockPendingIcon, BlueTickIcon, ForwardedIcon } from "../../assets/svgs/chat_icons"
 import { useContactStore } from "../../store/useContactStore"
+import { useMessageStore } from "../../store"
+import { isMe } from "../../lib/self"
+
+const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏"]
+const EmojiPicker = lazy(() => import("@emoji-mart/react"))
 
 interface MessageItemProps {
   message: store.DecodedMessage
@@ -59,6 +65,9 @@ export function MessageItem({
   )
   const [senderColor, setSenderColor] = useState<string | undefined>(cachedSender?.senderColor)
   const getSenderInfo = useContactStore(state => state.getSenderInfo)
+  const addReactionToMessage = useMessageStore(state => state.addReactionToMessage)
+  const [showReactionPicker, setShowReactionPicker] = useState(false)
+  const [showFullEmoji, setShowFullEmoji] = useState(false)
   // Derived directly from the message; no state/effect needed (a state+effect
   // here forced an extra re-render per message on mount).
   const reactions = message.reactions ?? []
@@ -94,8 +103,22 @@ export function MessageItem({
     }
   }
 
-  const handleReact = () => {
-    // TODO: Implement react functionality
+  const handleReact = () => setShowReactionPicker(v => !v)
+
+  const myReaction = (reactions as any[]).find(r => isMe(r.sender_id))?.emoji as
+    | string
+    | undefined
+
+  const sendReaction = (emoji: string) => {
+    // Tapping the emoji you already reacted with removes it (WhatsApp behaviour).
+    const finalEmoji = myReaction === emoji ? "" : emoji
+    // For our own messages the reaction key's sender is us (empty -> backend
+    // fills in own JID); for received messages it's the original sender.
+    const senderJID = isFromMe ? "" : message.Info.Sender
+    SendReaction(chatId, senderJID, message.Info.ID, finalEmoji).catch(() => {})
+    addReactionToMessage(chatId, message.Info.ID, finalEmoji, "me")
+    setShowReactionPicker(false)
+    setShowFullEmoji(false)
   }
 
   const handleForward = () => {
@@ -265,6 +288,64 @@ export function MessageItem({
             },
           )}
         >
+          {/* Hover reaction trigger just outside the bubble (WhatsApp-style). */}
+          <button
+            onClick={() => setShowReactionPicker(v => !v)}
+            title="React"
+            className={clsx(
+              "absolute bottom-1 z-20 rounded-full bg-white p-1 text-sm leading-none opacity-0 shadow transition-opacity group-hover:opacity-100 dark:bg-dark-tertiary",
+              isFromMe ? "-left-9" : "-right-9",
+            )}
+          >
+            🙂
+          </button>
+
+          {showReactionPicker && (
+            <div
+              className={clsx(
+                "absolute bottom-9 z-9999 flex w-max items-center gap-1 rounded-full bg-white px-2 py-1 shadow-lg dark:bg-dark-tertiary",
+                isFromMe ? "right-0" : "left-0",
+              )}
+            >
+              {QUICK_REACTIONS.map(emoji => (
+                <button
+                  key={emoji}
+                  onClick={() => sendReaction(emoji)}
+                  className={clsx(
+                    "rounded-full px-1 text-lg leading-none transition-transform hover:scale-125",
+                    myReaction === emoji && "bg-blue-500/40",
+                  )}
+                >
+                  {emoji}
+                </button>
+              ))}
+              <button
+                onClick={() => {
+                  setShowFullEmoji(true)
+                  setShowReactionPicker(false)
+                }}
+                title="More"
+                className="ml-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/10 text-sm dark:bg-white/10"
+              >
+                +
+              </button>
+            </div>
+          )}
+
+          {showFullEmoji && (
+            <div className="absolute bottom-9 z-9999" style={isFromMe ? { right: 0 } : { left: 0 }}>
+              <Suspense fallback={<div className="rounded bg-white p-2 text-xs shadow dark:bg-dark-tertiary">Loading…</div>}>
+                <EmojiPicker
+                  data={emojiData}
+                  onEmojiSelect={(e: any) => sendReaction(e.native)}
+                  onClickOutside={() => setShowFullEmoji(false)}
+                  theme="auto"
+                  previewPosition="none"
+                  skinTonePosition="none"
+                />
+              </Suspense>
+            </div>
+          )}
           {/* Message Menu - positioned at top right corner */}
           <MessageMenu
             messageId={message.Info.ID}
@@ -308,7 +389,13 @@ export function MessageItem({
 
           {/* Reactions */}
           {reactions.length > 0 && (
-            <div className={clsx("absolute -bottom-3 z-9999", isFromMe ? "right-2" : "left-2")}>
+            <div
+              onClick={() => setShowReactionPicker(v => !v)}
+              className={clsx(
+                "absolute -bottom-3 z-9999 cursor-pointer",
+                isFromMe ? "right-2" : "left-2",
+              )}
+            >
               <ReactionBubble reactions={reactions} isFromMe={isFromMe} />
             </div>
           )}

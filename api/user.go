@@ -8,6 +8,15 @@ import (
 	"go.mau.fi/whatsmeow/types"
 )
 
+// GetMyJID returns the logged-in user's phone-number part, used to identify
+// which reactions are our own (for toggling them off).
+func (a *Api) GetMyJID() string {
+	if a.waClient.Store.ID == nil {
+		return ""
+	}
+	return a.waClient.Store.ID.User
+}
+
 func (a *Api) GetProfile(jidStr string) (Contact, error) {
 	var targetJID types.JID
 	if jidStr == "" {

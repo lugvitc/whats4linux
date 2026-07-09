@@ -5,6 +5,7 @@ import QRCode from "qrcode"
 import { ChatListScreen } from "./screens/ChatScreen"
 import { LoginScreen } from "./screens/LoginScreen"
 import { SettingsScreen } from "./screens/SettingsScreen"
+import { initSelf } from "./lib/self"
 
 import { useUIStore } from "./store"
 import { useAppSettingsStore } from "./store/useAppSettingsStore"
@@ -65,6 +66,7 @@ function App() {
 
   useEffect(() => {
     Login()
+    initSelf()
 
     GetCustomCSS().then(css => {
       if (css) {
