@@ -29,13 +29,56 @@ import (
 
 // Api struct
 type Api struct {
-	ctx           context.Context
-	cw            *wa.AppDatabase
-	waClient      *whatsmeow.Client
-	messageStore  *store.MessageStore
-	imageCache    *cache.ImageCache
-	us            *socket.UnixSocket
-	windowFocused atomic.Bool
+	ctx                 context.Context
+	cw                  *wa.AppDatabase
+	waClient            *whatsmeow.Client
+	messageStore        *store.MessageStore
+	imageCache          *cache.ImageCache
+	us                  *socket.UnixSocket
+	windowFocused       atomic.Bool
+	groupRepairInFlight atomic.Bool
+}
+
+// repairGroupNames heals whats4linux_groups rows that are missing or were
+// stored with an empty name during early history sync. It runs in the
+// background after the client connects (never on the GetChatList hot path,
+// which must stay local-only and instant) and tells the frontend to reload
+// the chat list once anything was fixed.
+func (a *Api) repairGroupNames() {
+	if !a.groupRepairInFlight.CompareAndSwap(false, true) {
+		return
+	}
+	defer a.groupRepairInFlight.Store(false)
+
+	repaired := 0
+	for _, cm := range a.messageStore.GetChatList() {
+		if cm.JID.Server != types.GroupServer {
+			continue
+		}
+		if g, err := a.cw.FetchGroup(cm.JID.String()); err == nil && g.Name != "" {
+			continue
+		}
+		gi, err := a.waClient.GetGroupInfo(a.ctx, cm.JID)
+		if err != nil || gi == nil || gi.GroupName.Name == "" {
+			continue
+		}
+		if err := a.cw.StoreGroup(wa.Group{
+			JID:              cm.JID.String(),
+			Name:             gi.GroupName.Name,
+			Topic:            gi.GroupTopic.Topic,
+			OwnerJID:         gi.OwnerJID.String(),
+			ParticipantCount: len(gi.Participants),
+		}); err != nil {
+			log.Println("repairGroupNames: failed to persist group:", cm.JID.String(), err)
+			continue
+		}
+		repaired++
+	}
+
+	if repaired > 0 {
+		log.Printf("repairGroupNames: repaired %d group name(s)", repaired)
+		runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+	}
 }
 
 // htmlTagRE strips HTML tags from message previews so desktop notifications
@@ -275,6 +318,9 @@ func (a *Api) mainEventHandler(evt any) {
 		// groups in the app until a manual reinitialize is done). To avoid that,
 		// wait here until logged in.
 		a.cw.Initialise(a.waClient)
+		// Heal group rows with missing/empty names in the background now
+		// that the client can reach the server.
+		go a.repairGroupNames()
 		a.waClient.SendPresence(a.ctx, types.PresenceAvailable)
 		// Run migration for messages.db
 		err := a.messageStore.MigrateLIDToPN(a.ctx, a.waClient.Store.LIDs)

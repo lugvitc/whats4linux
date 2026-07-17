@@ -3,7 +3,6 @@ package api
 import (
 	"log"
 
-	"github.com/lugvitc/whats4linux/internal/wa"
 	"go.mau.fi/whatsmeow/types"
 )
 
@@ -20,28 +19,14 @@ func (a *Api) GetChatList() ([]ChatElement, error) {
 	for i, cm := range cmList {
 		var fc Contact
 		if cm.JID.Server == types.GroupServer {
+			// Local-only on purpose: this runs at startup before the client
+			// has connected, so it must never touch the network. Empty names
+			// are healed asynchronously by repairGroupNames after Connected.
 			name := ""
 			if groupInfo, err := a.cw.FetchGroup(cm.JID.String()); err == nil {
 				name = groupInfo.Name
-			}
-			// Rows synced during early history sync can be stored with an
-			// empty name (and left groups have no row at all). Repair once
-			// from the server and persist so later calls stay local.
-			if name == "" {
-				if gi, gerr := a.waClient.GetGroupInfo(a.ctx, cm.JID); gerr == nil && gi != nil {
-					name = gi.GroupName.Name
-					if serr := a.cw.StoreGroup(wa.Group{
-						JID:              cm.JID.String(),
-						Name:             gi.GroupName.Name,
-						Topic:            gi.GroupTopic.Topic,
-						OwnerJID:         gi.OwnerJID.String(),
-						ParticipantCount: len(gi.Participants),
-					}); serr != nil {
-						log.Println("GetChatList: failed to persist repaired group:", cm.JID.String(), serr)
-					}
-				} else {
-					log.Println("GetChatList: group lookup failed, using fallback:", cm.JID.String(), gerr)
-				}
+			} else {
+				log.Println("GetChatList: group lookup failed, using fallback:", cm.JID.String(), err)
 			}
 			if name == "" {
 				// A single unknown/left group must not blank the whole chat
