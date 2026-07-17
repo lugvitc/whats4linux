@@ -85,6 +85,8 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
               <div className="animate-spin h-5 w-5 border-2 border-green-500 rounded-full border-t-transparent" />
             </div>
           ) : null,
+        // Breathing room between the last message and the composer.
+        Footer: () => <div className="h-2" />,
       }}
       itemContent={(_index, msg) => {
         // WhatsApp-style grouping: consecutive messages from the same sender

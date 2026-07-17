@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { useContactStore } from "../../store/useContactStore"
+import { isMe } from "../../lib/self"
 
 export function QuotedMessage({
   contextInfo,
@@ -14,10 +15,12 @@ export function QuotedMessage({
   const getContactName = useContactStore(state => state.getContactName)
   const getContactColor = useContactStore(state => state.getContactColor)
   const quoted = contextInfo.quotedMessage
+  // Quoting yourself shows "You" in green, like WhatsApp — no lookup needed.
+  const isSelf = !!contextInfo.participant && isMe(contextInfo.participant)
 
   useEffect(() => {
     const participant = contextInfo.participant
-    if (participant) {
+    if (participant && !isSelf) {
       let mounted = true
       setLoadingName(true)
       getContactName(participant)
@@ -41,7 +44,7 @@ export function QuotedMessage({
         mounted = false
       }
     }
-  }, [contextInfo, getContactName, getContactColor])
+  }, [contextInfo, isSelf, getContactName, getContactColor])
 
   if (!quoted) return null
 
@@ -63,9 +66,12 @@ export function QuotedMessage({
     }
   }
 
+  const accentColor = isSelf || !senderColor ? "#21c063" : senderColor
+
   return (
     <div
-      className="bg-black/5 dark:bg-white/10 rounded-md p-2 mb-2 border-l-4 border-green-500 text-xs cursor-pointer hover:bg-black/10 dark:hover:bg-white/15 transition-colors"
+      className="bg-black/5 dark:bg-black/25 rounded-lg p-2 mb-1.5 border-l-4 text-xs cursor-pointer hover:bg-black/10 dark:hover:bg-black/35 transition-colors"
+      style={{ borderLeftColor: accentColor }}
       onClick={handleClick}
     >
       {/* Reserve a fixed-height area for the name so the quoted message height doesn't jump when name resolves */}
@@ -76,14 +82,14 @@ export function QuotedMessage({
             <span className="h-3 rounded bg-black/10 dark:bg-white/10 w-20" />
           </div>
         ) : (
-          <div className="font-bold truncate" style={{ color: senderColor }}>
-            {name}
+          <div className="font-medium truncate" style={{ color: accentColor }}>
+            {isSelf ? "You" : name}
           </div>
         )}
       </div>
 
       <div
-        className="line-clamp-2 opacity-70"
+        className="line-clamp-2 text-gray-600 dark:text-gray-300"
         dangerouslySetInnerHTML={{ __html: getText() }}
       ></div>
     </div>
