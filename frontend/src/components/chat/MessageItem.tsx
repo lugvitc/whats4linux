@@ -272,7 +272,7 @@ export function MessageItem({
       >
         <div
           className={clsx(
-            "max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl rounded-lg p-2 mx-5 relative min-w-0",
+            "max-w-[85%] lg:max-w-[65%] rounded-lg p-2 mx-5 relative min-w-0",
             {
               "w-min": hasMedia,
               "bg-transparent shadow-none": isSticker,

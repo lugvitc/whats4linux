@@ -46,7 +46,7 @@ export function ChatHeader({
 
       <button
         onClick={onInfoClick}
-        className="p-1 hover:bg-gray-200 dark:hover:bg-dark-tertiary rounded-full transition-colors"
+        className="p-1 shrink-0 hover:bg-gray-200 dark:hover:bg-dark-tertiary rounded-full transition-colors"
         aria-label="Chat info"
       >
         <InfoIcon />

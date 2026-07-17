@@ -446,9 +446,9 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
       <ResizablePanelGroup className="h-full">
         {/* Chat List Sidebar */}
         <ResizablePanel
-          defaultSize={30}
-          minSize={300}
-          maxSize={1000}
+          defaultSize="30%"
+          minSize="320px"
+          maxSize="600px"
           className={clsx(
             "flex-col",
             "border-r border-gray-200 dark:border-dark-tertiary",
@@ -502,7 +502,8 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
 
         {/* Chat Detail */}
         <ResizablePanel
-          defaultSize={70}
+          defaultSize="70%"
+          minSize="400px"
           className={clsx(
             "flex-col h-full",
             "bg-[#efeae2] dark:bg-[#0a0a0a] relative",
