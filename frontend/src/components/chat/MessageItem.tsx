@@ -271,21 +271,18 @@ export function MessageItem({
         )}
       >
         <div
-          className={clsx(
-            "max-w-[85%] lg:max-w-[65%] rounded-lg p-2 mx-5 relative min-w-0",
-            {
-              "w-min": hasMedia,
-              "bg-transparent shadow-none": isSticker,
+          className={clsx("max-w-[85%] lg:max-w-[65%] rounded-lg p-2 mx-5 relative min-w-0", {
+            "w-min": hasMedia,
+            "bg-transparent shadow-none": isSticker,
 
-              // SENT
-              "bg-sent-bubble-bg dark:bg-sent-bubble-dark-bg text-(--color-sent-bubble-text) dark:text-(--color-sent-bubble-dark-text)":
-                isFromMe && !isSticker,
+            // SENT
+            "bg-sent-bubble-bg dark:bg-sent-bubble-dark-bg text-(--color-sent-bubble-text) dark:text-(--color-sent-bubble-dark-text)":
+              isFromMe && !isSticker,
 
-              // RECEIVED
-              "bg-received-bubble-bg dark:bg-received-bubble-dark-bg text-(--color-received-bubble-text) dark:text-(--color-received-bubble-dark-text)":
-                !isFromMe && !isSticker,
-            },
-          )}
+            // RECEIVED
+            "bg-received-bubble-bg dark:bg-received-bubble-dark-bg text-(--color-received-bubble-text) dark:text-(--color-received-bubble-dark-text)":
+              !isFromMe && !isSticker,
+          })}
         >
           {/* Hover reaction trigger just outside the bubble (WhatsApp-style). */}
           <button
@@ -368,10 +365,7 @@ export function MessageItem({
 
           {!isFromMe && chatId.endsWith("@g.us") && (
             <div className="flex items-baseline justify-between gap-4 mb-0.5">
-              <span
-                className="text-[11px] font-semibold truncate"
-                style={{ color: senderColor }}
-              >
+              <span className="text-[11px] font-semibold truncate" style={{ color: senderColor }}>
                 {senderName}
               </span>
               {/* WhatsApp shows the phone number next to the name for senders

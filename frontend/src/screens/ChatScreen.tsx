@@ -37,7 +37,10 @@ const Header = ({ onOpenSettings, avatar }: HeaderProps) => (
   <div className="h-16 bg-light-secondary dark:bg-dark-bg flex items-center justify-between px-4 border-b border-gray-200 dark:border-white/5">
     <h1 className="text-xl font-bold text-light-text dark:text-white">WhatsApp</h1>
     <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
-      <button title="New Chat" className="hover:bg-gray-100 dark:hover:bg-white/10 p-2 rounded-full">
+      <button
+        title="New Chat"
+        className="hover:bg-gray-100 dark:hover:bg-white/10 p-2 rounded-full"
+      >
         <NewChatIcon />
       </button>
       <button
