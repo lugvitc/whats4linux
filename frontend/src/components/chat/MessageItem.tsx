@@ -8,7 +8,12 @@ import { ReactionBubble } from "./Reactions"
 import { LinkPreview } from "./LinkPreview"
 import clsx from "clsx"
 import { MessageMenu } from "./MessageMenu"
-import { ClockPendingIcon, BlueTickIcon, ForwardedIcon } from "../../assets/svgs/chat_icons"
+import {
+  ClockPendingIcon,
+  BlueTickIcon,
+  ForwardedIcon,
+  UserAvatar,
+} from "../../assets/svgs/chat_icons"
 import { useContactStore } from "../../store/useContactStore"
 import { useMessageStore } from "../../store"
 import { isMe } from "../../lib/self"
@@ -49,8 +54,8 @@ function SenderAvatar({ jid }: { jid: string }) {
   }, [jid])
 
   return (
-    <div className="w-7 h-7 ml-3 rounded-full overflow-hidden bg-gray-300 dark:bg-gray-600 shrink-0 self-start flex items-center justify-center">
-      {url ? <img src={url} className="w-full h-full object-cover" /> : null}
+    <div className="w-7 h-7 ml-3 rounded-full overflow-hidden bg-gray-300 dark:bg-gray-600 shrink-0 self-start flex items-center justify-center text-gray-500 dark:text-gray-400 [&_svg]:w-5 [&_svg]:h-5">
+      {url ? <img src={url} className="w-full h-full object-cover" /> : <UserAvatar />}
     </div>
   )
 }

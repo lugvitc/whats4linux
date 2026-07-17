@@ -374,14 +374,9 @@ export function ChatInput({
   }
 
   return (
-    <div
-      className={clsx(
-        "relative p-2 mb-4 mx-5 border border-gray-200 dark:border-transparent bg-light-bg dark:bg-[#242626]",
-        replyingTo || pastedImage || selectedFile ? "rounded-t-xl rounded-b-3xl" : "rounded-full",
-      )}
-    >
+    <div className="relative mx-3 mb-3">
       {showEmojiPicker && (
-        <div ref={emojiPickerRef} className="absolute bottom-20 left-4 z-50">
+        <div ref={emojiPickerRef} className="absolute bottom-full left-0 z-50 mb-2">
           <Suspense fallback={<div className="p-4 text-sm">Loading emojis...</div>}>
             <EmojiPicker
               data={data}
@@ -394,34 +389,25 @@ export function ChatInput({
         </div>
       )}
 
-      {/* Image Preview (pasted) */}
-      {pastedImage && <ImagePreview imageSrc={pastedImage} onRemove={onRemoveFile} />}
-
-      {/* File Preview (attached) */}
-      {selectedFile && (
-        <FilePreview file={selectedFile} fileType={selectedFileType} onRemove={onRemoveFile} />
+      {/* Previews (pasted image / attached file / reply) sit in a card above
+          the composer pill, like WhatsApp. */}
+      {(pastedImage || selectedFile || replyingTo) && (
+        <div className="mb-2 rounded-xl border border-gray-200 bg-light-bg p-2 dark:border-transparent dark:bg-[#242626]">
+          {pastedImage && <ImagePreview imageSrc={pastedImage} onRemove={onRemoveFile} />}
+          {selectedFile && (
+            <FilePreview file={selectedFile} fileType={selectedFileType} onRemove={onRemoveFile} />
+          )}
+          {renderReplyPreview()}
+        </div>
       )}
-      {renderReplyPreview()}
-      {/* Main Input Row */}
-      <div className="flex items-center gap-2">
-        {/* Emoji Button */}
-        <IconButton ref={emojiButtonRef} onClick={onToggleEmojiPicker} title="Emoji">
-          <EmojiIcon />
-        </IconButton>
-
-        {/* Attach Button */}
-        <IconButton onClick={() => fileInputRef.current?.click()} title="Attach file">
-          <AttachIcon />
-        </IconButton>
-
-        {/* Hidden File Input */}
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={onFileSelect}
-          className="hidden"
-          accept="image/*,video/*,audio/*,.pdf,.doc,.docx"
-        />
+      {/* Main input row: rounded pill (emoji left, attach right) with the
+          send button as a separate circle outside, WhatsApp-style. */}
+      <div className="flex items-end gap-2">
+        <div className="flex flex-1 items-center rounded-full border border-gray-200 bg-light-bg px-1.5 dark:border-transparent dark:bg-[#242626]">
+          {/* Emoji Button */}
+          <IconButton ref={emojiButtonRef} onClick={onToggleEmojiPicker} title="Emoji">
+            <EmojiIcon />
+          </IconButton>
 
         {/* Text Input */}
         <div className="flex-1 bg-transparent rounded-full relative">
@@ -443,7 +429,7 @@ export function ChatInput({
             onKeyDown={onKeyDown}
             onPaste={onPaste}
             onScroll={handleScroll}
-            placeholder="Type a message"
+            placeholder="Message"
             className={clsx(
               "relative z-10 w-full p-2 bg-transparent resize-none outline-none max-h-32",
               "text-transparent caret-green",
@@ -489,13 +475,28 @@ export function ChatInput({
           )}
         </div>
 
-        {/* Send Button */}
+          {/* Attach Button */}
+          <IconButton onClick={() => fileInputRef.current?.click()} title="Attach file">
+            <AttachIcon />
+          </IconButton>
+
+          {/* Hidden File Input */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={onFileSelect}
+            className="hidden"
+            accept="image/*,video/*,audio/*,.pdf,.doc,.docx"
+          />
+        </div>
+
+        {/* Send Button — separate green circle outside the pill */}
         <button
           onClick={onSendMessage}
           disabled={!hasContent}
           className={clsx(
-            "p-2 rounded-full text-white transition-colors",
-            hasContent ? "bg-green hover:bg-green/70" : "bg-green/50 cursor-not-allowed",
+            "mb-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white transition-colors",
+            hasContent ? "bg-green hover:bg-green/80" : "bg-green/50 cursor-not-allowed",
           )}
         >
           <SendIcon />
