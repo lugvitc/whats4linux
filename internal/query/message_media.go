@@ -40,6 +40,10 @@ const (
 	SELECT gif_playback FROM message_media WHERE message_id = ?;
 	`
 
+	SelectDimensionsByMessageID = `
+	SELECT width, height FROM message_media WHERE message_id = ?;
+	`
+
 	SelectThumbnailByMessageID = `
 	SELECT thumbnail FROM message_media WHERE message_id = ?;
 	`

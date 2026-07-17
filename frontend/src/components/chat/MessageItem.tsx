@@ -82,14 +82,6 @@ export function MessageItem({
   highlightedMessageId,
 }: MessageItemProps) {
   const isFromMe = message.Info.IsFromMe
-  // Debug: log every render and also when the message updates or unmounts
-  // console.log(`[MessageItem] render id=${message.Info.ID} fromMe=${isFromMe} chat=${chatId}`)
-  useEffect(() => {
-    // console.log(`[MessageItem] message updated id=${message.Info.ID}`, message)
-    return () => {
-      // console.log(`[MessageItem] cleanup/unmount id=${message.Info.ID}`)
-    }
-  }, [message.Info.ID, message.Info.Timestamp])
   const content = message.Content
   const isSticker = !!content?.stickerMessage
   const isPending = (message as any).isPending || false
@@ -332,12 +324,15 @@ export function MessageItem({
     <>
       <div
         className={clsx(
-          "flex group transition duration-200",
+          "flex group",
           isFromMe ? "justify-end" : "justify-start",
           // Reserve room for the reaction pill overhanging the bubble bottom.
           reactions.length > 0 && "mb-3",
           {
-            "bg-[#21C063]/50 dark:bg-[#21C063]/40": highlightedMessageId === message.Info.ID,
+            // Transition scoped to the highlighted row only — a blanket
+            // transition on every row makes scrolling more expensive.
+            "bg-[#21C063]/50 dark:bg-[#21C063]/40 transition-colors duration-200":
+              highlightedMessageId === message.Info.ID,
           },
         )}
       >

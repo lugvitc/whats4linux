@@ -1,5 +1,5 @@
 import { forwardRef, useImperativeHandle, useRef, memo } from "react"
-import { Virtuoso, type VirtuosoHandle } from "react-virtuoso"
+import { Virtuoso, type VirtuosoHandle, type Components } from "react-virtuoso"
 import { store } from "../../../wailsjs/go/models"
 import { MessageItem } from "./MessageItem"
 
@@ -25,6 +25,34 @@ export interface MessageListHandle {
 }
 
 const MemoizedMessageItem = memo(MessageItem)
+
+// Mount rows well before they enter the viewport so row mount work (media
+// placeholders, contact lookups) happens off-screen instead of mid-scroll.
+const OVERSCAN = { top: 800, bottom: 800 }
+
+interface ListContext {
+  isLoading?: boolean
+}
+
+// Components must be stable module-level references: an inline object/arrow
+// recreated per render makes Virtuoso remount them on every parent re-render
+// (which happens mid-scroll via atBottomStateChange), causing visible hitches.
+const ListHeader: Components<store.DecodedMessage, ListContext>["Header"] = ({ context }) =>
+  context?.isLoading ? (
+    <div className="flex justify-center py-4">
+      <div className="animate-spin h-5 w-5 border-2 border-green-500 rounded-full border-t-transparent" />
+    </div>
+  ) : null
+
+// Breathing room between the last message and the composer.
+const ListFooter: Components<store.DecodedMessage, ListContext>["Footer"] = () => (
+  <div className="h-2" />
+)
+
+const listComponents: Components<store.DecodedMessage, ListContext> = {
+  Header: ListHeader,
+  Footer: ListFooter,
+}
 
 export const MessageList = forwardRef<MessageListHandle, MessageListProps>(function MessageList(
   {
@@ -67,27 +95,19 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
       data={messages}
       firstItemIndex={firstItemIndex}
       initialTopMostItemIndex={Math.max(0, messages.length - 1)}
-      // A modest buffer keeps rows ready just ahead of the viewport without
-      // mounting so many expensive rows that scrolling itself gets costly.
-      increaseViewportBy={{ top: 200, bottom: 200 }}
+      increaseViewportBy={OVERSCAN}
       // Fires when the user scrolls to the very top -> load older messages.
       startReached={() => {
         if (hasMore && !isLoading) onLoadMore?.()
       }}
       atBottomStateChange={atBottom => onAtBottomChange?.(atBottom)}
       // Stick to the bottom for new messages only when already at the bottom.
-      followOutput={atBottom => (atBottom ? "smooth" : false)}
+      // "auto" (instant) rather than "smooth": animated follow fights with
+      // fast incoming updates and produces janky rubber-banding.
+      followOutput={atBottom => (atBottom ? "auto" : false)}
       computeItemKey={(_index, msg) => msg?.Info?.ID ?? String(_index)}
-      components={{
-        Header: () =>
-          isLoading ? (
-            <div className="flex justify-center py-4">
-              <div className="animate-spin h-5 w-5 border-2 border-green-500 rounded-full border-t-transparent" />
-            </div>
-          ) : null,
-        // Breathing room between the last message and the composer.
-        Footer: () => <div className="h-2" />,
-      }}
+      context={{ isLoading }}
+      components={listComponents}
       itemContent={(_index, msg) => {
         // WhatsApp-style grouping: consecutive messages from the same sender
         // form a run — only the first shows the sender name/avatar, and runs

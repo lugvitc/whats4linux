@@ -8,6 +8,32 @@ import { useUIStore } from "../../store"
 // GIFs (WhatsApp sends them as short muted videos) loop a few times then stop.
 const MAX_GIF_LOOPS = 3
 
+// Rendered bounds for chat images/GIF videos. These must match the Tailwind
+// classes on the media elements below: min-w-75 (300px), max-w-82.5 (330px),
+// max-h-100 (400px).
+const MEDIA_MIN_W = 300
+const MEDIA_MAX_W = 330
+const MEDIA_MAX_H = 400
+
+// Computes the exact box CSS gives the loaded media from its intrinsic
+// dimensions (stored by the backend in message_media), so the placeholder can
+// reserve identical space up front. Without this the row height changes when
+// the pixels arrive, which makes Virtuoso re-anchor and the list visibly
+// jump while scrolling.
+function mediaBox(w?: number, h?: number): { width: number; height: number } | null {
+  if (!w || !h || w <= 0 || h <= 0) return null
+  const scale = Math.min(MEDIA_MAX_W / w, MEDIA_MAX_H / h, 1)
+  let width = w * scale
+  let height = h * scale
+  if (width < MEDIA_MIN_W) {
+    // Mirrors CSS min-width resolution: widen to the minimum, scale height by
+    // the same factor, clamp to max height (object-cover crops the overflow).
+    height = Math.min(MEDIA_MAX_H, (height * MEDIA_MIN_W) / width)
+    width = MEDIA_MIN_W
+  }
+  return { width: Math.round(width), height: Math.round(height) }
+}
+
 interface MediaContentProps {
   message: store.DecodedMessage
   type: "image" | "video" | "sticker" | "audio" | "document"
@@ -34,6 +60,14 @@ export function MediaContent({
   const gifLoopsRef = useRef(0)
   const placeholderRef = useRef<HTMLDivElement | null>(null)
   const openLightbox = useUIStore(s => s.openLightbox)
+
+  // Reserve the final layout box before the media loads. Only images and GIF
+  // videos swap a placeholder for an inline element, so only they can shift.
+  const messageBody = (message.Content as any)?.[`${type}Message`]
+  const reservedBox =
+    type === "image" || (type === "video" && isGif)
+      ? mediaBox(messageBody?.width, messageBody?.height)
+      : null
 
   const loadFromCache = async (): Promise<string | null> => {
     if (loading) return null
@@ -174,6 +208,9 @@ export function MediaContent({
                 ? "block min-w-75 max-w-82.5 max-h-100 object-cover rounded-lg cursor-pointer"
                 : "object-contain w-48.75 h-48.75"
             }
+            // Same explicit box as the placeholder -> zero layout shift.
+            style={type === "image" ? (reservedBox ?? undefined) : undefined}
+            decoding="async"
             alt="media"
             onClick={
               type === "image"
@@ -224,6 +261,7 @@ export function MediaContent({
             void v.play().catch(() => {})
           }}
           className="block min-w-75 max-w-82.5 max-h-100 rounded-lg cursor-pointer"
+          style={reservedBox ?? undefined}
         />
       ) : (
         <video src={mediaSrc} controls className="block min-w-75 max-w-82.5 max-h-100 rounded-lg" />
@@ -239,7 +277,12 @@ export function MediaContent({
         ref={placeholderRef}
         onClick={openVideo}
         className="relative w-64 h-64 rounded-lg overflow-hidden bg-gray-300 dark:bg-gray-800 flex items-center justify-center cursor-pointer bg-cover bg-center"
-        style={thumbnailSrc ? { backgroundImage: `url(${thumbnailSrc})` } : undefined}
+        // GIFs auto-swap this placeholder for the inline <video>, so it must
+        // already occupy the video's final box when dimensions are known.
+        style={{
+          ...(isGif && reservedBox ? reservedBox : null),
+          ...(thumbnailSrc ? { backgroundImage: `url(${thumbnailSrc})` } : null),
+        }}
       >
         {loading ? (
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white" />
@@ -257,7 +300,13 @@ export function MediaContent({
   return (
     <div
       ref={placeholderRef}
-      className="w-64 h-64 bg-gray-200 dark:bg-gray-800 rounded-lg flex items-center justify-center"
+      // Stickers always render at a fixed 195px square (w-48.75 above), so
+      // reserve exactly that; images get their computed final box when the
+      // backend knows the dimensions. Both avoid a resize on load.
+      className={`${
+        type === "sticker" ? "w-48.75 h-48.75" : "w-64 h-64"
+      } bg-gray-200 dark:bg-gray-800 rounded-lg flex items-center justify-center`}
+      style={reservedBox ?? undefined}
     >
       {loading ? (
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500" />

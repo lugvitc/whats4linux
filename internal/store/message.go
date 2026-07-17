@@ -85,6 +85,8 @@ type MediaMessageContent struct {
 	Caption     string       `json:"caption,omitempty"`
 	Mimetype    string       `json:"mimetype,omitempty"`
 	GifPlayback bool         `json:"gifPlayback,omitempty"`
+	Width       int          `json:"width,omitempty"`
+	Height      int          `json:"height,omitempty"`
 	ContextInfo *ContextInfo `json:"contextInfo,omitempty"`
 }
 
@@ -1091,6 +1093,8 @@ func extractMessageContent(msg *waE2E.Message) (text, fileName, replyToMessageID
 	case msg.GetVideoMessage() != nil:
 		emc = msg.GetVideoMessage()
 		text = msg.GetVideoMessage().GetCaption()
+		width = int(msg.GetVideoMessage().GetWidth())
+		height = int(msg.GetVideoMessage().GetHeight())
 		mediaType = mtypes.MediaTypeVideo
 		if contextInfo := msg.GetVideoMessage().GetContextInfo(); contextInfo != nil {
 			replyToMessageID = contextInfo.GetStanzaID()
@@ -1248,14 +1252,20 @@ func (ms *MessageStore) buildDecodedContent(
 			content.Conversation = text
 		}
 	case mtypes.MediaTypeImage:
+		width, height := ms.mediaDimensions(messageID)
 		content.ImageMessage = &MediaMessageContent{
 			Caption:     text,
+			Width:       width,
+			Height:      height,
 			ContextInfo: contextInfo,
 		}
 	case mtypes.MediaTypeVideo:
+		width, height := ms.mediaDimensions(messageID)
 		content.VideoMessage = &MediaMessageContent{
 			Caption:     text,
 			GifPlayback: ms.isGifPlayback(messageID),
+			Width:       width,
+			Height:      height,
 			ContextInfo: contextInfo,
 		}
 	case mtypes.MediaTypeAudio:
@@ -1269,7 +1279,10 @@ func (ms *MessageStore) buildDecodedContent(
 			ContextInfo: contextInfo,
 		}
 	case mtypes.MediaTypeSticker:
+		width, height := ms.mediaDimensions(messageID)
 		content.StickerMessage = &MediaMessageContent{
+			Width:       width,
+			Height:      height,
 			ContextInfo: contextInfo,
 		}
 	default:
@@ -1277,6 +1290,21 @@ func (ms *MessageStore) buildDecodedContent(
 	}
 
 	return content
+}
+
+// mediaDimensions returns the stored intrinsic width/height for a media
+// message so the frontend can reserve the final layout box before the media
+// loads (prevents scroll jumps in the virtualized list). Returns zeros when
+// unknown (older rows or protos without dimensions).
+func (ms *MessageStore) mediaDimensions(messageID string) (int, int) {
+	if messageID == "" {
+		return 0, 0
+	}
+	var width, height sql.NullInt64
+	if err := ms.db.QueryRow(query.SelectDimensionsByMessageID, messageID).Scan(&width, &height); err != nil {
+		return 0, 0
+	}
+	return int(width.Int64), int(height.Int64)
 }
 
 // isGifPlayback reports whether a video message was flagged as GIF playback
