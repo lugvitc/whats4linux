@@ -15,12 +15,25 @@ const MEDIA_MIN_W = 300
 const MEDIA_MAX_W = 330
 const MEDIA_MAX_H = 400
 
+// Module-level caches keyed by message ID. Virtuoso constantly unmounts and
+// remounts rows while scrolling; without these every pass over a media row
+// re-runs the RPCs and re-renders placeholder-then-media, which reads as
+// flicker/shake. Paths and thumbnail URLs are small strings — bounded cost.
+const imagePathCache = new Map<string, string>()
+const videoThumbCache = new Map<string, string>()
+
+// Fallback box for GIF videos whose dimensions were never stored (rows synced
+// before dimension extraction existed). A fixed square with object-cover is
+// deterministic: the placeholder and the loaded video occupy the same box, so
+// the row height never changes.
+const GIF_FALLBACK_BOX = { width: 256, height: 256 }
+
 // Computes the exact box CSS gives the loaded media from its intrinsic
 // dimensions (stored by the backend in message_media), so the placeholder can
 // reserve identical space up front. Without this the row height changes when
 // the pixels arrive, which makes Virtuoso re-anchor and the list visibly
 // jump while scrolling.
-function mediaBox(w?: number, h?: number): { width: number; height: number } | null {
+export function mediaBox(w?: number, h?: number): { width: number; height: number } | null {
   if (!w || !h || w <= 0 || h <= 0) return null
   const scale = Math.min(MEDIA_MAX_W / w, MEDIA_MAX_H / h, 1)
   let width = w * scale
@@ -53,10 +66,16 @@ export function MediaContent({
   onImageClick,
   onDownload,
 }: MediaContentProps) {
-  const [mediaSrc, setMediaSrc] = useState<string | null>(null)
+  // Seed from the module caches so a remounted row paints its final content
+  // immediately instead of placeholder-then-swap.
+  const [mediaSrc, setMediaSrc] = useState<string | null>(
+    () => imagePathCache.get(message.Info.ID) ?? null,
+  )
   const [loading, setLoading] = useState(false)
   const [showDownloadButton, setShowDownloadButton] = useState(false)
-  const [thumbnailSrc, setThumbnailSrc] = useState<string | null>(null)
+  const [thumbnailSrc, setThumbnailSrc] = useState<string | null>(
+    () => videoThumbCache.get(message.Info.ID) ?? null,
+  )
   const gifLoopsRef = useRef(0)
   const placeholderRef = useRef<HTMLDivElement | null>(null)
   const openLightbox = useUIStore(s => s.openLightbox)
@@ -74,7 +93,10 @@ export function MediaContent({
     setLoading(true)
     try {
       const imagePath = await GetCachedImage(message.Info.ID)
-      if (imagePath) setMediaSrc(imagePath)
+      if (imagePath) {
+        imagePathCache.set(message.Info.ID, imagePath)
+        setMediaSrc(imagePath)
+      }
       return imagePath || null
     } catch (e) {
       return null
@@ -172,17 +194,19 @@ export function MediaContent({
   // Fetch the embedded preview for regular videos so the list shows a thumbnail
   // + play button without downloading the whole video. (GIFs auto-play instead.)
   useEffect(() => {
-    if (type !== "video" || isGif || mediaSrc) return
+    if (type !== "video" || isGif || mediaSrc || thumbnailSrc) return
     let cancelled = false
     GetVideoThumbnail(message.Info.ID)
       .then(url => {
-        if (!cancelled && url) setThumbnailSrc(url)
+        if (!url) return
+        videoThumbCache.set(message.Info.ID, url)
+        if (!cancelled) setThumbnailSrc(url)
       })
       .catch(() => {})
     return () => {
       cancelled = true
     }
-  }, [type, isGif, mediaSrc, message.Info.ID])
+  }, [type, isGif, mediaSrc, thumbnailSrc, message.Info.ID])
 
   useEffect(() => {
     // Cleanup blob URLs when component unmounts or mediaSrc changes
@@ -260,8 +284,8 @@ export function MediaContent({
             v.currentTime = 0
             void v.play().catch(() => {})
           }}
-          className="block min-w-75 max-w-82.5 max-h-100 rounded-lg cursor-pointer"
-          style={reservedBox ?? undefined}
+          className="block min-w-75 max-w-82.5 max-h-100 rounded-lg cursor-pointer object-cover"
+          style={reservedBox ?? GIF_FALLBACK_BOX}
         />
       ) : (
         <video src={mediaSrc} controls className="block min-w-75 max-w-82.5 max-h-100 rounded-lg" />
@@ -280,7 +304,7 @@ export function MediaContent({
         // GIFs auto-swap this placeholder for the inline <video>, so it must
         // already occupy the video's final box when dimensions are known.
         style={{
-          ...(isGif && reservedBox ? reservedBox : null),
+          ...(isGif ? (reservedBox ?? GIF_FALLBACK_BOX) : null),
           ...(thumbnailSrc ? { backgroundImage: `url(${thumbnailSrc})` } : null),
         }}
       >
