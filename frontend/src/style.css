@@ -28,6 +28,15 @@ label[for] {
   background-size: 550px 999px;
   background-repeat: repeat;
   opacity: 0.075;
+  /* Own compositor layer: keeps the tiled pattern out of the scroll repaint
+     path on WebKitGTK. */
+  transform: translateZ(0);
+}
+
+/* Promote the message scroller to its own layer — WebKitGTK otherwise
+   repaints the full stack (wallpaper included) while scrolling. */
+.virtuoso-scroller {
+  transform: translateZ(0);
 }
 
 .dark .chat-wallpaper {
@@ -35,7 +44,10 @@ label[for] {
 }
 
 .dark .chat-wallpaper::after {
-  filter: invert(1);
+  /* Pre-inverted tile asset instead of filter: invert(1) — CSS filters on a
+     full-viewport repeating layer hit a slow compositing path in WebKitGTK
+     and tax every scroll frame. */
+  background-image: url("./assets/images/bg-chat-tile-dark.png");
   opacity: 0.09;
 }
 

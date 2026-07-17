@@ -96,6 +96,9 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
       firstItemIndex={firstItemIndex}
       initialTopMostItemIndex={Math.max(0, messages.length - 1)}
       increaseViewportBy={OVERSCAN}
+      // Height estimate for unmeasured rows — closer guesses mean smaller
+      // corrective re-anchors while fast-scrolling into unmeasured regions.
+      defaultItemHeight={56}
       // Fires when the user scrolls to the very top -> load older messages.
       startReached={() => {
         if (hasMore && !isLoading) onLoadMore?.()

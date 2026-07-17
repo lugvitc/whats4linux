@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense } from "react"
+import React, { useState, useEffect, useMemo, lazy, Suspense } from "react"
 import emojiData from "@emoji-mart/data"
 import { store } from "../../../wailsjs/go/models"
 import { DownloadImageToFile, GetCachedAvatar, SendReaction } from "../../../wailsjs/go/api/Api"
@@ -198,6 +198,16 @@ export function MessageItem({
 
   const isTextContent = !!(content?.conversation || content?.extendedTextMessage?.text)
 
+  // Intl formatting is relatively expensive — compute once per timestamp.
+  const timeStr = useMemo(
+    () =>
+      new Date(message.Info.Timestamp).toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit",
+      }),
+    [message.Info.Timestamp],
+  )
+
   // Inline metadata (time + ticks). For text messages it floats into the last
   // line WhatsApp-style; for media/documents it renders as a bottom row.
   const timeMeta = (floated: boolean) => (
@@ -208,12 +218,7 @@ export function MessageItem({
       )}
     >
       {message.edited && <span>Edited</span>}
-      <span>
-        {new Date(message.Info.Timestamp).toLocaleTimeString([], {
-          hour: "numeric",
-          minute: "2-digit",
-        })}
-      </span>
+      <span>{timeStr}</span>
       {isFromMe && (isPending ? <ClockPendingIcon /> : <BlueTickIcon />)}
     </span>
   )
