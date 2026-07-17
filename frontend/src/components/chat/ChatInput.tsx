@@ -11,9 +11,12 @@ import {
 import { store } from "../../../wailsjs/go/models"
 import { GetCachedAvatar } from "../../../wailsjs/go/api/Api"
 import { useContactStore } from "../../store/useContactStore"
+import { PollDialog } from "./PollDialog"
+import { ContactShareDialog } from "./ContactShareDialog"
 
 const EmojiPicker = lazy(() => import("@emoji-mart/react"))
 interface ChatInputProps {
+  chatId: string
   inputText: string
   pastedImage: string | null
   selectedFile: File | null
@@ -110,6 +113,7 @@ const ImagePreview = ({ imageSrc, onRemove }: ImagePreviewProps) => (
 )
 
 export function ChatInput({
+  chatId,
   inputText,
   pastedImage,
   selectedFile,
@@ -134,6 +138,10 @@ export function ChatInput({
   selectedMentions,
 }: ChatInputProps) {
   const [mentionSuggestions, setMentionSuggestions] = useState<any[]>([])
+  const [attachMenuOpen, setAttachMenuOpen] = useState(false)
+  const [pollOpen, setPollOpen] = useState(false)
+  const [contactOpen, setContactOpen] = useState(false)
+  const [fileAccept, setFileAccept] = useState("image/*,video/*,audio/*,.pdf,.doc,.docx")
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [mentionAvatars, setMentionAvatars] = useState<Record<string, string>>({})
   const [loadingAvatars, setLoadingAvatars] = useState<Record<string, boolean>>({})
@@ -475,10 +483,50 @@ export function ChatInput({
             )}
           </div>
 
-          {/* Attach Button */}
-          <IconButton onClick={() => fileInputRef.current?.click()} title="Attach file">
-            <AttachIcon />
-          </IconButton>
+          {/* Attach Button + WhatsApp-style attach menu */}
+          <div className="relative">
+            <IconButton onClick={() => setAttachMenuOpen(v => !v)} title="Attach">
+              <AttachIcon />
+            </IconButton>
+            {attachMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setAttachMenuOpen(false)} />
+                <div className="absolute bottom-12 right-0 z-50 w-48 rounded-xl bg-white py-2 shadow-lg dark:bg-dark-secondary">
+                  {(
+                    [
+                      {
+                        label: "📷 Photos & videos",
+                        act: () => {
+                          setFileAccept("image/*,video/*")
+                          setTimeout(() => fileInputRef.current?.click(), 0)
+                        },
+                      },
+                      {
+                        label: "📄 Document",
+                        act: () => {
+                          setFileAccept("*/*")
+                          setTimeout(() => fileInputRef.current?.click(), 0)
+                        },
+                      },
+                      { label: "📊 Poll", act: () => setPollOpen(true) },
+                      { label: "👤 Contact", act: () => setContactOpen(true) },
+                    ] as const
+                  ).map(item => (
+                    <button
+                      key={item.label}
+                      onClick={() => {
+                        setAttachMenuOpen(false)
+                        item.act()
+                      }}
+                      className="block w-full px-4 py-2 text-left text-sm text-gray-800 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-white/5"
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
 
           {/* Hidden File Input */}
           <input
@@ -486,7 +534,7 @@ export function ChatInput({
             ref={fileInputRef}
             onChange={onFileSelect}
             className="hidden"
-            accept="image/*,video/*,audio/*,.pdf,.doc,.docx"
+            accept={fileAccept}
           />
         </div>
 
@@ -502,6 +550,9 @@ export function ChatInput({
           <SendIcon />
         </button>
       </div>
+
+      {pollOpen && <PollDialog chatId={chatId} onClose={() => setPollOpen(false)} />}
+      {contactOpen && <ContactShareDialog chatId={chatId} onClose={() => setContactOpen(false)} />}
     </div>
   )
 }

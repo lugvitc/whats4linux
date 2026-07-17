@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/lugvitc/whats4linux/internal/markdown"
@@ -590,4 +591,97 @@ func (a *Api) SetMessagePinned(chatJID, senderJID, messageID string, fromMe, pin
 	}
 	runtime.EventsEmit(a.ctx, "wa:pinned_update", map[string]any{"chatId": chatJID})
 	return nil
+}
+
+// sendAndStoreLocal sends a prebuilt message and records it locally so the
+// UI shows it immediately, mirroring SendMessage's echo path.
+func (a *Api) sendAndStoreLocal(chat types.JID, msgContent *waE2E.Message, preview string) (string, error) {
+	resp, err := a.waClient.SendMessage(a.ctx, chat, msgContent)
+	if err != nil {
+		return "", err
+	}
+	msgEvent := &events.Message{
+		Info: types.MessageInfo{
+			ID:        resp.ID,
+			Timestamp: resp.Timestamp,
+			MessageSource: types.MessageSource{
+				Chat:     chat,
+				IsFromMe: true,
+				Sender:   *a.waClient.Store.ID,
+			},
+		},
+		Message: msgContent,
+	}
+	messageID := a.messageStore.ProcessMessageEvent(a.ctx, a.waClient.Store.LIDs, msgEvent, "")
+
+	var msg any
+	if messageID != "" {
+		if decodedMsg, derr := a.messageStore.GetDecodedMessage(chat.String(), messageID); derr == nil {
+			msg = decodedMsg
+		}
+	}
+	runtime.EventsEmit(a.ctx, "wa:new_message", map[string]any{
+		"chatId":      chat.String(),
+		"message":     msg,
+		"messageText": preview,
+		"timestamp":   resp.Timestamp.Unix(),
+		"sender":      "You",
+		"isFromMe":    true,
+	})
+	return resp.ID, nil
+}
+
+// SendPoll creates a poll in the chat. selectableCount 1 = single answer,
+// 0 or len(options) = multiple answers allowed.
+func (a *Api) SendPoll(chatJID, name string, options []string, selectableCount int) (string, error) {
+	if a.waClient.Store.ID == nil {
+		return "", fmt.Errorf("client not logged in")
+	}
+	chat, err := types.ParseJID(chatJID)
+	if err != nil {
+		return "", err
+	}
+	name = strings.TrimSpace(name)
+	clean := make([]string, 0, len(options))
+	for _, o := range options {
+		if o = strings.TrimSpace(o); o != "" {
+			clean = append(clean, o)
+		}
+	}
+	if name == "" || len(clean) < 2 {
+		return "", fmt.Errorf("a poll needs a question and at least two options")
+	}
+	msg := a.waClient.BuildPollCreation(name, clean, selectableCount)
+	return a.sendAndStoreLocal(chat, msg, "📊 "+name)
+}
+
+// SendShareContact shares a contact card in the chat.
+func (a *Api) SendShareContact(chatJID, displayName, phone string) (string, error) {
+	if a.waClient.Store.ID == nil {
+		return "", fmt.Errorf("client not logged in")
+	}
+	chat, err := types.ParseJID(chatJID)
+	if err != nil {
+		return "", err
+	}
+	displayName = strings.TrimSpace(displayName)
+	digits := strings.Map(func(r rune) rune {
+		if r >= '0' && r <= '9' {
+			return r
+		}
+		return -1
+	}, phone)
+	if displayName == "" || digits == "" {
+		return "", fmt.Errorf("contact needs a name and a phone number")
+	}
+	vcard := fmt.Sprintf(
+		"BEGIN:VCARD\nVERSION:3.0\nFN:%s\nTEL;type=CELL;waid=%s:+%s\nEND:VCARD",
+		displayName, digits, digits)
+	msg := &waE2E.Message{
+		ContactMessage: &waE2E.ContactMessage{
+			DisplayName: &displayName,
+			Vcard:       &vcard,
+		},
+	}
+	return a.sendAndStoreLocal(chat, msg, "👤 "+displayName)
 }

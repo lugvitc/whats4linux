@@ -629,6 +629,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
           </div>
         </div>
         <ChatInput
+          chatId={chatId}
           inputText={inputText}
           pastedImage={pastedImage}
           selectedFile={selectedFile}

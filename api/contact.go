@@ -57,7 +57,6 @@ func (a *Api) FetchContacts() ([]Contact, error) {
 		return nil, err
 	}
 	contacts := make([]Contact, 0, len(rawContacts))
-	var result []Contact
 	for jid, c := range rawContacts {
 		rawNum := "+" + jid.User
 		// Parse phone number to use as International Format
@@ -75,5 +74,5 @@ func (a *Api) FetchContacts() ([]Contact, error) {
 			IsBusiness: c.BusinessName != "",
 		})
 	}
-	return result, nil
+	return contacts, nil
 }
