@@ -482,8 +482,8 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
   }, [isAtBottom])
 
   return (
-    <div className="flex h-full">
-      <div className="flex flex-col flex-1">
+    <div className="flex h-full min-w-0">
+      <div className="flex flex-col flex-1 min-w-0">
         <ChatHeader
           chatName={chatName}
           chatSubtitle={chatSubtitle}

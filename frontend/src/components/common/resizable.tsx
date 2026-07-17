@@ -16,8 +16,19 @@ function ResizablePanelGroup({
   )
 }
 
-function ResizablePanel({ ...props }: React.ComponentProps<typeof ResizablePrimitive.Panel>) {
-  return <ResizablePrimitive.Panel data-slot="resizable-panel" {...props} />
+function ResizablePanel({
+  className,
+  ...props
+}: React.ComponentProps<typeof ResizablePrimitive.Panel>) {
+  // overflow-hidden keeps an unshrinkable child (long unbroken text, wide
+  // media) from blowing the panel past the group and shifting the layout.
+  return (
+    <ResizablePrimitive.Panel
+      data-slot="resizable-panel"
+      className={cn("overflow-hidden", className)}
+      {...props}
+    />
+  )
 }
 
 function ResizableHandle({
