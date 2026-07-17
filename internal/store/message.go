@@ -1591,7 +1591,6 @@ func (ms *MessageStore) GetPinnedChats() map[string]int64 {
 	return pins
 }
 
-
 // SetChatArchived stores whether a chat is archived.
 func (ms *MessageStore) SetChatArchived(chatJID string, archived bool, ts int64) error {
 	if archived {
