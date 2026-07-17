@@ -12,6 +12,7 @@ import { EventsOn } from "../../wailsjs/runtime/runtime"
 import { ChatDetail } from "./ChatDetail"
 import { useChatStore, useChatById, useFilteredChatIds } from "../store"
 import { useSelfAvatarStore } from "../store/useSelfAvatarStore"
+import { useChatMuted } from "../store/useMuteStore"
 import type { ChatItem } from "../store/types"
 import { StatusList, StoryViewer, type StatusGroup } from "../components/chat/Status"
 import {
@@ -20,6 +21,7 @@ import {
   NewChatIcon,
   MenuIcon,
   EmptyStateIcon,
+  MutedBellIcon,
 } from "../assets/svgs/chat_icons"
 import { SearchIcon } from "../assets/svgs/settings_icons"
 import {
@@ -38,7 +40,10 @@ const Header = ({ onOpenSettings, avatar }: HeaderProps) => (
   <div className="h-16 bg-light-secondary dark:bg-dark-bg flex items-center justify-between px-4 border-b border-gray-200 dark:border-white/5">
     <h1 className="text-xl font-bold text-light-text dark:text-white">WhatsApp</h1>
     <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
-      <button title="New Chat" className="hover:bg-gray-100 dark:hover:bg-white/10 p-2 rounded-full">
+      <button
+        title="New Chat"
+        className="hover:bg-gray-100 dark:hover:bg-white/10 p-2 rounded-full"
+      >
         <NewChatIcon />
       </button>
       <button
@@ -98,6 +103,7 @@ const PinIcon = ({ className }: { className?: string }) => (
 
 interface ChatListItemContentProps {
   chat: ChatItem
+  muted: boolean
   isSelected: boolean
   onSelect: (chat: ChatItem) => void
   onContextMenu: (e: React.MouseEvent, chat: ChatItem) => void
@@ -105,55 +111,62 @@ interface ChatListItemContentProps {
 
 // Pure presentational component - memoized to prevent unnecessary re-renders
 const ChatListItemContent = memo(
-  ({ chat, isSelected, onSelect, onContextMenu }: ChatListItemContentProps) => (
-  <div
-    onClick={() => onSelect(chat)}
-    onContextMenu={e => onContextMenu(e, chat)}
-    className={clsx(
-      "flex items-center px-4 py-3 cursor-pointer",
-      "hover:bg-gray-100 dark:hover:bg-[#202121]",
-      isSelected && "bg-gray-200 dark:bg-[#2e2f2f]",
-    )}
-  >
-    <div className="w-12 h-12 rounded-full bg-gray-300 dark:bg-gray-600 mr-4 shrink-0 overflow-hidden flex items-center justify-center">
-      <MemoizedChatAvatar avatar={chat.avatar} type={chat.type} name={chat.name} />
-    </div>
-    <div className="flex-1 min-w-0">
-      <div className="flex justify-between items-baseline mb-1">
-        <h3 className="text-light-text dark:text-dark-text font-medium truncate">{chat.name}</h3>
-        <span
-          className={clsx(
-            "text-xs",
-            chat.unreadCount
-              ? "font-medium text-[#1b9a58] dark:text-[#21c063]"
-              : "text-gray-500 dark:text-[#8696a0]",
-          )}
-        >
-          {chat.timestamp
-            ? new Date(chat.timestamp * 1000).toLocaleTimeString([], {
-                hour: "numeric",
-                minute: "2-digit",
-              })
-            : "yesterday"}
-        </span>
+  ({ chat, muted, isSelected, onSelect, onContextMenu }: ChatListItemContentProps) => (
+    <div
+      onClick={() => onSelect(chat)}
+      onContextMenu={e => onContextMenu(e, chat)}
+      className={clsx(
+        "flex items-center px-4 py-3 cursor-pointer",
+        "hover:bg-gray-100 dark:hover:bg-[#202121]",
+        isSelected && "bg-gray-200 dark:bg-[#2e2f2f]",
+      )}
+    >
+      <div className="w-12 h-12 rounded-full bg-gray-300 dark:bg-gray-600 mr-4 shrink-0 overflow-hidden flex items-center justify-center">
+        <MemoizedChatAvatar avatar={chat.avatar} type={chat.type} name={chat.name} />
       </div>
-      <div className="flex items-center gap-2">
-        <div className="flex-1 text-sm text-gray-500 dark:text-[#8696a0] truncate [&_p]:inline [&_p]:m-0 ">
-          {chat.sender && chat.type === "group" && <span className="mr-1">{chat.sender}: </span>}
-          <span
-            className="[&_br]:hidden no-formatting"
-            dangerouslySetInnerHTML={{ __html: chat.subtitle }}
-          />
+      <div className="flex-1 min-w-0">
+        <div className="flex justify-between items-baseline mb-1">
+          <h3 className="text-light-text dark:text-dark-text font-medium truncate">{chat.name}</h3>
+          <div className="flex items-center gap-1 shrink-0">
+            {muted && (
+              <span className="text-gray-500 dark:text-[#8696a0]">
+                <MutedBellIcon />
+              </span>
+            )}
+            <span
+              className={clsx(
+                "text-xs",
+                chat.unreadCount
+                  ? "font-medium text-[#1b9a58] dark:text-[#21c063]"
+                  : "text-gray-500 dark:text-[#8696a0]",
+              )}
+            >
+              {chat.timestamp
+                ? new Date(chat.timestamp * 1000).toLocaleTimeString([], {
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })
+                : "yesterday"}
+            </span>
+          </div>
         </div>
-        {chat.pinned && <PinIcon className="shrink-0 text-gray-400 dark:text-[#8696a0]" />}
-        {chat.unreadCount ? (
-          <span className="shrink-0 min-w-5 h-5 px-1.5 flex items-center justify-center rounded-full bg-[#21c063] text-[#0a1014] text-xs font-semibold">
-            {chat.unreadCount > 99 ? "99+" : chat.unreadCount}
-          </span>
-        ) : null}
+        <div className="flex items-center gap-2">
+          <div className="flex-1 text-sm text-gray-500 dark:text-[#8696a0] truncate [&_p]:inline [&_p]:m-0 ">
+            {chat.sender && chat.type === "group" && <span className="mr-1">{chat.sender}: </span>}
+            <span
+              className="[&_br]:hidden no-formatting"
+              dangerouslySetInnerHTML={{ __html: chat.subtitle }}
+            />
+          </div>
+          {chat.pinned && <PinIcon className="shrink-0 text-gray-400 dark:text-[#8696a0]" />}
+          {chat.unreadCount ? (
+            <span className="shrink-0 min-w-5 h-5 px-1.5 flex items-center justify-center rounded-full bg-[#21c063] text-[#0a1014] text-xs font-semibold">
+              {chat.unreadCount > 99 ? "99+" : chat.unreadCount}
+            </span>
+          ) : null}
+        </div>
       </div>
     </div>
-  </div>
   ),
 )
 
@@ -170,12 +183,15 @@ interface ChatListItemProps {
 const ChatListItem = memo(({ chatId, isSelected, onSelect, onContextMenu }: ChatListItemProps) => {
   // This hook only triggers re-render when THIS specific chat changes
   const chat = useChatById(chatId)
+  // Boolean selector - only re-renders when THIS chat's muted flag flips
+  const muted = useChatMuted(chatId)
 
   if (!chat) return null
 
   return (
     <ChatListItemContent
       chat={chat}
+      muted={muted}
       isSelected={isSelected}
       onSelect={onSelect}
       onContextMenu={onContextMenu}

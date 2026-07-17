@@ -8,9 +8,12 @@ import {
   DisappearingMessagesIcon,
   ReportIcon,
 } from "../../assets/svgs/chat_info_icons"
-import { GetProfile, GetGroupInfo } from "../../../wailsjs/go/api/Api"
+import { GetProfile, GetGroupInfo, IsChatMuted, ToggleChatMute } from "../../../wailsjs/go/api/Api"
 import { api } from "../../../wailsjs/go/models"
+import { EventsOn } from "../../../wailsjs/runtime/runtime"
 import { GoBackIcon } from "../../assets/svgs/header_icons"
+import ToggleButton from "../settings/ToggleButton"
+import { useMuteStore } from "../../store/useMuteStore"
 
 interface ChatInfoProps {
   chatId: string
@@ -33,6 +36,8 @@ export function ChatInfo({
   const [groupInfo, setGroupInfo] = useState<api.Group | null>(null)
   const [loading, setLoading] = useState(true)
   const [showAllParticipants, setShowAllParticipants] = useState(false)
+  const [muted, setMutedState] = useState(false)
+  const [muteBusy, setMuteBusy] = useState(false)
   const MAX_VISIBLE = 10
 
   useEffect(() => {
@@ -40,6 +45,54 @@ export function ChatInfo({
       setShowAllParticipants(false)
     }
   }, [isOpen, chatId])
+
+  // Load mute state when the panel opens and keep it fresh via runtime events.
+  useEffect(() => {
+    if (!isOpen || !chatId) return
+
+    let cancelled = false
+
+    IsChatMuted(chatId)
+      .then(isMuted => {
+        if (cancelled) return
+        setMutedState(!!isMuted)
+        // Teach the chat-list store lazily so rows show the muted bell.
+        useMuteStore.getState().setMuted(chatId, !!isMuted)
+      })
+      .catch(err => {
+        console.error("Failed to load mute state:", err)
+      })
+
+    const unsub = EventsOn("wa:chat_mute_update", (data: { chatId: string; muted: boolean }) => {
+      if (data?.chatId === chatId) {
+        setMutedState(!!data.muted)
+      }
+    })
+
+    return () => {
+      cancelled = true
+      unsub()
+    }
+  }, [isOpen, chatId])
+
+  const handleToggleMute = useCallback(async () => {
+    if (muteBusy) return
+    const next = !muted
+
+    // Optimistic update (panel + chat-list store), revert on failure.
+    setMuteBusy(true)
+    setMutedState(next)
+    useMuteStore.getState().setMuted(chatId, next)
+    try {
+      await ToggleChatMute(chatId, next)
+    } catch (err) {
+      console.error("Failed to toggle chat mute:", err)
+      setMutedState(!next)
+      useMuteStore.getState().setMuted(chatId, !next)
+    } finally {
+      setMuteBusy(false)
+    }
+  }, [chatId, muted, muteBusy])
 
   const loadInfo = useCallback(async () => {
     // Don't re-fetch if we already have the data for this chat
@@ -187,10 +240,17 @@ export function ChatInfo({
 
             {/* Mute notifications */}
             <div className="mx-3 border-b border-gray-200 dark:border-dark-tertiary">
-              <button className="w-full p-4 flex items-center rounded-xl m-2 justify-between hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors">
+              <button
+                onClick={handleToggleMute}
+                disabled={muteBusy}
+                className="w-full p-4 flex items-center rounded-xl m-2 justify-between hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors disabled:opacity-60"
+              >
                 <div className="flex items-center gap-3">
                   <MuteIcon />
                   <span className="text-gray-900 dark:text-gray-100">Mute notifications</span>
+                </div>
+                <div onClick={e => e.stopPropagation()}>
+                  <ToggleButton isEnabled={muted} onToggle={handleToggleMute} />
                 </div>
               </button>
 
