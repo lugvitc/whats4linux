@@ -119,8 +119,8 @@ const ChatListItemContent = memo(
       onContextMenu={e => onContextMenu(e, chat)}
       className={clsx(
         "flex items-center px-4 py-3 cursor-pointer",
-        "hover:bg-gray-100 dark:hover:bg-[#202121]",
-        isSelected && "bg-gray-200 dark:bg-[#2e2f2f]",
+        "hover:bg-gray-100 dark:hover:bg-[#1a1a1a]",
+        isSelected && "bg-gray-200 dark:bg-[#242626]",
       )}
     >
       <div className="w-12 h-12 rounded-full bg-gray-300 dark:bg-gray-600 mr-4 shrink-0 overflow-hidden flex items-center justify-center">
@@ -599,7 +599,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
                 className={clsx(
                   "rounded-full border px-3 py-1 text-sm capitalize transition-colors",
                   view === v
-                    ? "border-transparent bg-[#d9fdd3] font-medium text-[#0a1014] dark:bg-[#21c063]"
+                    ? "border-transparent bg-[#d9fdd3] font-medium text-[#0a1014] dark:bg-[#e9edef] dark:text-[#0b141a]"
                     : "border-gray-300 text-gray-500 hover:bg-gray-100 dark:border-white/10 dark:text-[#8696a0] dark:hover:bg-white/5",
                 )}
               >
@@ -613,7 +613,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
           {!showArchived && view === "chats" && archivedCount > 0 && (
             <button
               onClick={() => setShowArchived(true)}
-              className="flex w-full items-center gap-4 px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-[#202121]"
+              className="flex w-full items-center gap-4 px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-[#1a1a1a]"
             >
               <span className="flex w-12 justify-center text-[#1b9a58] dark:text-[#21c063]">
                 <svg viewBox="0 0 24 24" width="20" height="20" className="fill-current">

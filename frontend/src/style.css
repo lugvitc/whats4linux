@@ -52,11 +52,11 @@ label[for] {
 }
 
 @theme {
-  --color-dark-bg: #161717;
-  --color-dark-secondary: #1a1a1a;
+  --color-dark-bg: #0c0c0c;
+  --color-dark-secondary: #111111;
   --color-dark-tertiary: #2e2f2f;
-  --color-dark-text: #ffffff;
-  --color-dark-muted: #b5bac1;
+  --color-dark-text: #e9edef;
+  --color-dark-muted: #8696a0;
   --color-light-bg: #ffffff;
   --color-light-text: #000000;
   --color-light-primary: #00a884;
