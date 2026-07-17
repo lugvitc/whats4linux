@@ -181,6 +181,39 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
     setIsAtBottom(atBottom)
   }, [])
 
+  // Focus the composer as soon as a chat is opened so the user can type
+  // immediately (like WhatsApp).
+  useEffect(() => {
+    textareaRef.current?.focus()
+  }, [chatId])
+
+  // ESC: close overlays first (info panel, emoji picker, reply), then leave
+  // the chat back to the list.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return
+      if (chatInfoOpen) {
+        setChatInfoOpen(false)
+        return
+      }
+      if (showEmojiPicker) {
+        setShowEmojiPicker(false)
+        return
+      }
+      if (replyingTo) {
+        setReplyingTo(null)
+        return
+      }
+      if (onBack) {
+        onBack()
+      } else {
+        useChatStore.getState().selectChat(null)
+      }
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [chatInfoOpen, showEmojiPicker, replyingTo, onBack, setChatInfoOpen, setShowEmojiPicker])
+
   const loadInitialMessages = useCallback(async () => {
     setInitialLoad(true)
     setIsReady(false)
@@ -581,7 +614,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
 
           <div className={clsx("relative z-10 h-full", (!isReady || initialLoad) && "invisible")}>
             <MessageList
-              key={chatId}
+              key={`${chatId}:${isReady ? "ready" : "loading"}`}
               ref={messageListRef}
               chatId={chatId}
               messages={chatMessages}
