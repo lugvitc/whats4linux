@@ -115,6 +115,20 @@ func (cw *AppDatabase) FetchGroups() ([]Group, error) {
 	return groups, nil
 }
 
+// StoreGroup upserts a single group row. Used to repair rows that were
+// stored with an empty name during early history sync.
+func (cw *AppDatabase) StoreGroup(g Group) error {
+	cw.mu.Lock()
+	defer cw.mu.Unlock()
+
+	_, err := cw.db.Exec(query.InsertOrReplaceGroup,
+		g.JID, g.Name, g.Topic, g.OwnerJID, g.ParticipantCount)
+	if err != nil {
+		return fmt.Errorf("failed to upsert group %s: %w", g.JID, err)
+	}
+	return nil
+}
+
 func (cw *AppDatabase) FetchGroup(jid string) (*Group, error) {
 	row := cw.db.QueryRow(query.SelectGroupByJID, jid)
 
