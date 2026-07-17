@@ -9,7 +9,7 @@ interface ChatHeaderProps {
 
 export function ChatHeader({ chatName, chatAvatar, onBack, onInfoClick }: ChatHeaderProps) {
   return (
-    <div className="flex items-center justify-between p-3 bg-light-secondary dark:bg-dark-secondary border-b border-gray-300 dark:border-dark-tertiary">
+    <div className="flex items-center justify-between p-3 bg-light-secondary dark:bg-dark-bg border-b border-gray-300 dark:border-white/5">
       <div className="flex items-center gap-3">
         {onBack && (
           <button onClick={onBack} className="mr-4 md:hidden">
@@ -24,7 +24,7 @@ export function ChatHeader({ chatName, chatAvatar, onBack, onInfoClick }: ChatHe
               chatName.substring(0, 1).toUpperCase()
             )}
           </div>
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">{chatName}</h2>
+          <h2 className="text-[16px] font-medium text-gray-800 dark:text-gray-100">{chatName}</h2>
         </div>
       </div>
 

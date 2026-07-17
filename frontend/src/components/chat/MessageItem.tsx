@@ -378,7 +378,7 @@ export function MessageItem({
             <QuotedMessage contextInfo={contextInfo} onQuotedClick={onQuotedClick} />
           )}
           <div className="text-sm wrap-break-words whitespace-pre-wrap">{renderContent()}</div>
-          <div className="text-[10px] text-right opacity-50 mt-1 flex items-center justify-end gap-1">
+          <div className="text-[11px] text-right opacity-60 mt-1 flex items-center justify-end gap-1">
             {message.edited && <span>Edited</span>}
             <span>
               {new Date(message.Info.Timestamp).toLocaleTimeString([], {

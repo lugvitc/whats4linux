@@ -34,21 +34,22 @@ interface HeaderProps {
 }
 
 const Header = ({ onOpenSettings, avatar }: HeaderProps) => (
-  <div className="h-16 bg-light-secondary dark:bg-dark-secondary flex items-center justify-between px-4 border-b border-gray-200 dark:border-dark-tertiary">
-    <div className="w-10 h-10 rounded-full bg-gray-300 dark:bg-gray-600 overflow-hidden flex items-center justify-center">
-      {avatar ? <img src={avatar} className="w-full h-full object-cover" /> : <UserAvatar />}
-    </div>
-    <div className="flex gap-4 text-gray-500 dark:text-gray-400">
-      <button title="New Chat" className="hover:bg-hover-icons p-2 rounded-full">
+  <div className="h-16 bg-light-secondary dark:bg-dark-bg flex items-center justify-between px-4 border-b border-gray-200 dark:border-white/5">
+    <h1 className="text-xl font-bold text-light-text dark:text-white">WhatsApp</h1>
+    <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+      <button title="New Chat" className="hover:bg-gray-100 dark:hover:bg-white/10 p-2 rounded-full">
         <NewChatIcon />
       </button>
       <button
         title="Menu"
         onClick={onOpenSettings}
-        className="hover:bg-hover-icons p-2 rounded-full"
+        className="hover:bg-gray-100 dark:hover:bg-white/10 p-2 rounded-full"
       >
         <MenuIcon />
       </button>
+      <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 overflow-hidden flex items-center justify-center ml-2">
+        {avatar ? <img src={avatar} className="w-full h-full object-cover" /> : <UserAvatar />}
+      </div>
     </div>
   </div>
 )
@@ -59,8 +60,8 @@ interface SearchBarProps {
 }
 
 const SearchBar = ({ value, onChange }: SearchBarProps) => (
-  <div className="p-2 bg-light-bg dark:bg-dark-bg border-b border-gray-200 dark:border-dark-tertiary">
-    <div className="bg-light-tertiary dark:bg-dark-tertiary rounded-full flex items-center px-4 py-2">
+  <div className="px-3 py-2 bg-light-bg dark:bg-dark-bg">
+    <div className="bg-light-tertiary dark:bg-[#242626] rounded-full flex items-center px-4 py-2">
       <div className="text-gray-500 dark:text-gray-400 mr-4">
         <SearchIcon />
       </div>
@@ -98,9 +99,9 @@ const ChatListItemContent = memo(({ chat, isSelected, onSelect }: ChatListItemCo
   <div
     onClick={() => onSelect(chat)}
     className={clsx(
-      "flex items-center p-3 cursor-pointer divide-white/75 divide-y rounded-xl m-3",
-      "hover:bg-gray-100 dark:hover:bg-dark-tertiary",
-      isSelected && "bg-gray-200 dark:bg-[#2a2a2a]",
+      "flex items-center px-4 py-3 cursor-pointer",
+      "hover:bg-gray-100 dark:hover:bg-[#202121]",
+      isSelected && "bg-gray-200 dark:bg-[#2e2f2f]",
     )}
   >
     <div className="w-12 h-12 rounded-full bg-gray-300 dark:bg-gray-600 mr-4 shrink-0 overflow-hidden flex items-center justify-center">
@@ -109,7 +110,14 @@ const ChatListItemContent = memo(({ chat, isSelected, onSelect }: ChatListItemCo
     <div className="flex-1 min-w-0">
       <div className="flex justify-between items-baseline mb-1">
         <h3 className="text-light-text dark:text-dark-text font-medium truncate">{chat.name}</h3>
-        <span className="text-xs text-gray-500 dark:text-gray-400">
+        <span
+          className={clsx(
+            "text-xs",
+            chat.unreadCount
+              ? "font-medium text-[#1b9a58] dark:text-[#21c063]"
+              : "text-gray-500 dark:text-[#8696a0]",
+          )}
+        >
           {chat.timestamp
             ? new Date(chat.timestamp * 1000).toLocaleTimeString([], {
                 hour: "2-digit",
@@ -119,7 +127,7 @@ const ChatListItemContent = memo(({ chat, isSelected, onSelect }: ChatListItemCo
         </span>
       </div>
       <div className="flex items-center gap-2">
-        <div className="flex-1 text-sm text-gray-500 dark:text-gray-400 truncate [&_p]:inline [&_p]:m-0 ">
+        <div className="flex-1 text-sm text-gray-500 dark:text-[#8696a0] truncate [&_p]:inline [&_p]:m-0 ">
           {chat.sender && chat.type === "group" && <span className="mr-1">{chat.sender}: </span>}
           <span
             className="[&_br]:hidden no-formatting"
@@ -127,7 +135,7 @@ const ChatListItemContent = memo(({ chat, isSelected, onSelect }: ChatListItemCo
           />
         </div>
         {chat.unreadCount ? (
-          <span className="shrink-0 min-w-5 h-5 px-1.5 flex items-center justify-center rounded-full bg-blue-500 text-white text-xs font-semibold">
+          <span className="shrink-0 min-w-5 h-5 px-1.5 flex items-center justify-center rounded-full bg-[#21c063] text-[#0a1014] text-xs font-semibold">
             {chat.unreadCount > 99 ? "99+" : chat.unreadCount}
           </span>
         ) : null}
@@ -449,16 +457,16 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
           )}
         >
           <Header onOpenSettings={onOpenSettings} avatar={selfAvatar} />
-          <div className="flex gap-2 border-b border-gray-100 px-3 py-2 dark:border-dark-tertiary">
+          <div className="flex gap-2 px-3 pb-2 pt-1">
             {(["chats", "channels", "status"] as const).map(v => (
               <button
                 key={v}
                 onClick={() => setView(v)}
                 className={clsx(
-                  "rounded-full px-3 py-1 text-sm capitalize transition-colors",
+                  "rounded-full border px-3 py-1 text-sm capitalize transition-colors",
                   view === v
-                    ? "bg-green-600 text-white"
-                    : "text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-dark-tertiary",
+                    ? "border-transparent bg-[#d9fdd3] font-medium text-[#0a1014] dark:bg-[#21c063]"
+                    : "border-gray-300 text-gray-500 hover:bg-gray-100 dark:border-white/10 dark:text-[#8696a0] dark:hover:bg-white/5",
                 )}
               >
                 {v}
@@ -497,7 +505,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
           defaultSize={70}
           className={clsx(
             "flex-col h-full",
-            "bg-[#efeae2] dark:bg-dark-secondary relative",
+            "bg-[#efeae2] dark:bg-[#0a0a0a] relative",
             selectedChatId ? "flex" : "hidden md:flex",
           )}
         >

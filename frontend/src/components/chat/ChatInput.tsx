@@ -376,7 +376,7 @@ export function ChatInput({
   return (
     <div
       className={clsx(
-        "relative p-2 mb-4 mx-5 border dark:border-dark-secondary bg-light-bg dark:bg-dark-tertiary",
+        "relative p-2 mb-4 mx-5 border border-gray-200 dark:border-transparent bg-light-bg dark:bg-[#242626]",
         replyingTo || pastedImage || selectedFile ? "rounded-t-xl rounded-b-3xl" : "rounded-full",
       )}
     >
@@ -424,7 +424,7 @@ export function ChatInput({
         />
 
         {/* Text Input */}
-        <div className="flex-1 bg-light-bg dark:bg-dark-tertiary rounded-full relative">
+        <div className="flex-1 bg-transparent rounded-full relative">
           <div
             ref={backdropRef}
             className={clsx(

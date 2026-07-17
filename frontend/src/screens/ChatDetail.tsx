@@ -482,7 +482,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
               scrolling (and repainting) with it — big scroll-perf win. */}
           <div className="chat-wallpaper absolute inset-0 pointer-events-none z-0" />
           {(initialLoad || !isReady) && (
-            <div className="absolute inset-0 flex items-center justify-center bg-[#efeae2] dark:bg-dark-bg z-50">
+            <div className="absolute inset-0 flex items-center justify-center bg-[#efeae2] dark:bg-[#0a0a0a] z-50">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500" />
             </div>
           )}
