@@ -47,8 +47,7 @@ export class LRUCache<K, V> {
     this.totalWeight += weight
     while (this.entries.size > this.maxEntries || this.totalWeight > this.maxWeight) {
       const oldest = this.entries.entries().next().value as
-        | [K, { value: V; weight: number }]
-        | undefined
+        [K, { value: V; weight: number }] | undefined
       if (!oldest) break
       this.entries.delete(oldest[0])
       this.totalWeight -= oldest[1].weight

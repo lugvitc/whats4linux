@@ -232,10 +232,7 @@ export function MessageItem({
             {timeMeta(true)}
           </div>
           {htmlContent.includes('class="msg-link"') && (
-            <LinkPreview
-              messageId={message.Info.ID}
-              preview={message.link_preview ?? null}
-            />
+            <LinkPreview messageId={message.Info.ID} preview={message.link_preview ?? null} />
           )}
         </>
       )
