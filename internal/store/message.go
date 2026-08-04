@@ -917,6 +917,7 @@ func (ms *MessageStore) GetMessageWithMediaByID(messageID string) (*ExtendedMess
 			url           sql.NullString
 			mimetype      sql.NullString
 			directPath    sql.NullString
+			fileName      sql.NullString
 			mediaKey      []byte
 			fileSHA256    []byte
 			fileEncSHA256 []byte
@@ -932,8 +933,10 @@ func (ms *MessageStore) GetMessageWithMediaByID(messageID string) (*ExtendedMess
 			&fileEncSHA256,
 			&width,
 			&height,
+			&fileName,
 		)
 		if err != nil {
+			log.Println("GetMessageWithMediaByID media query error:", err)
 			return nil, err
 		}
 		media = wa.NewMedia(
