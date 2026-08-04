@@ -52,6 +52,10 @@ type Api struct {
 	windowFocused       atomic.Bool
 	groupRepairInFlight atomic.Bool
 	appStateResync      atomic.Bool
+	// appStateRecoveryReq tracks which collections we've already asked the
+	// phone to re-send (keyed by appstate.WAPatchName). See
+	// requestAppStateRecovery.
+	appStateRecoveryReq sync.Map
 }
 
 // repairGroupNames heals whats4linux_groups rows that are missing or were
@@ -104,11 +108,10 @@ func (a *Api) repairGroupNames() {
 	}
 }
 
-// resyncAppState fully syncs the regular_low app state collection (archive,
-// pin and mute mutations). When the local hash chain is corrupted
-// ("mismatching LTHash"), incremental sync fails forever and mutations from
-// the phone never arrive — recover by dropping the local version and pulling
-// the collection from scratch. Runs in the background after Connected.
+// resyncAppState fully syncs the archive/pin and mute app state collections.
+// Called when sending a mutation failed, on the theory that our local view has
+// drifted from the server's. Not called on connect: whatsmeow already fetches
+// incrementally there, and a full sync is destructive (see below).
 func (a *Api) resyncAppState() {
 	if !a.appStateResync.CompareAndSwap(false, true) {
 		return
@@ -121,6 +124,13 @@ func (a *Api) resyncAppState() {
 	// EmitAppStateEventsOnFullSync set, every mutation is dispatched to
 	// mainEventHandler (FromFullSync=true) and lands in our tables.
 	for _, name := range []appstate.WAPatchName{appstate.WAPatchRegularLow, appstate.WAPatchRegularHigh} {
+		// Never full-sync a collection we've asked the phone to re-send: the
+		// server snapshot is the thing that fails to verify, so this would drop
+		// the recovered version and re-fetch the same broken data.
+		if _, recovering := a.appStateRecoveryReq.Load(name); recovering {
+			log.Println("Skipping app state full sync, recovery pending:", name)
+			continue
+		}
 		if err := a.waClient.FetchAppState(a.ctx, name, true, false); err != nil {
 			log.Printf("App state full sync failed for %s: %v", name, err)
 			continue
@@ -128,6 +138,34 @@ func (a *Api) resyncAppState() {
 		log.Println("App state fully synced:", name)
 	}
 	runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+}
+
+// requestAppStateRecovery asks the phone for an unencrypted copy of an app
+// state collection. This is the escape hatch for a hash chain that a full sync
+// cannot repair: when the server snapshot itself fails LTHash verification,
+// resyncAppState re-downloads that same unverifiable snapshot on every connect
+// and the collection stays pinned at its last good version forever, so
+// archive/pin/mute changes made on the phone stop arriving.
+//
+// The phone replies with a snapshot whatsmeow applies without LTHash
+// verification, dispatching each mutation as a normal event (whats4linux sets
+// EmitAppStateEventsOnFullSync, see internal/wa/client.go) so it lands in our
+// tables through the events.Archive/events.Pin handlers.
+//
+// Asked at most once per collection per run: the reply is asynchronous and
+// arrives well after the sync error that triggered it, so re-requesting on
+// every failed fetch would send the phone a burst of duplicate requests.
+func (a *Api) requestAppStateRecovery(name appstate.WAPatchName) {
+	if _, asked := a.appStateRecoveryReq.LoadOrStore(name, true); asked {
+		return
+	}
+	if _, err := a.waClient.SendPeerMessage(a.ctx, whatsmeow.BuildAppStateRecoveryRequest(name)); err != nil {
+		// Let a later failure try again — the request never reached the phone.
+		a.appStateRecoveryReq.Delete(name)
+		log.Printf("App state recovery request failed for %s: %v", name, err)
+		return
+	}
+	log.Println("Requested app state recovery from phone:", name)
 }
 
 // htmlTagRE strips HTML tags from message previews so desktop notifications
@@ -498,8 +536,12 @@ func (a *Api) mainEventHandler(evt any) {
 		// Heal group rows with missing/empty names in the background now
 		// that the client can reach the server.
 		a.startBackground(a.repairGroupNames)
-		// Recover archive/pin/mute sync if the local app state is corrupted.
-		a.startBackground(a.resyncAppState)
+		// NOTE: deliberately no app state resync here. FetchAppState(fullSync)
+		// drops the stored version before re-downloading, so running it on every
+		// connect destroys a collection recovered from the phone and re-fetches
+		// the same unverifiable server snapshot — the collection never heals.
+		// whatsmeow does its own incremental fetch after connecting; if that
+		// fails, events.AppStateSyncError below picks the right repair.
 		if err := a.waClient.SendPresence(a.ctx, types.PresenceAvailable); err != nil {
 			log.Println("failed to send available presence:", err)
 		}
@@ -527,6 +569,22 @@ func (a *Api) mainEventHandler(evt any) {
 			log.Println("Failed to store chat pin:", err)
 		}
 		runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+	case *events.AppStateSyncError:
+		// A broken hash chain for this collection. If even the server snapshot
+		// fails to verify, a full sync (resyncAppState) hits the same wall on
+		// every connect, so ask the phone for a plain copy instead.
+		if errors.Is(v.Error, appstate.ErrMismatchingLTHash) {
+			log.Printf("App state %s is unrecoverable via sync (%v); requesting recovery from phone", v.Name, v.Error)
+			a.startBackground(func() { a.requestAppStateRecovery(v.Name) })
+		}
+	case *events.AppStateSyncComplete:
+		// A phone-recovery snapshot was applied (see requestAppStateRecovery):
+		// the version and LTHash are rewritten, so the chain is healed and full
+		// syncs are safe for this collection again.
+		if v.Recovery {
+			log.Printf("App state %s recovered from phone (v%d)", v.Name, v.Version)
+			a.appStateRecoveryReq.Delete(v.Name)
+		}
 	case *events.Disconnected:
 		a.waClient.SendPresence(a.ctx, types.PresenceUnavailable)
 	case *events.Receipt:
