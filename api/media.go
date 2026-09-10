@@ -120,6 +120,9 @@ func (a *Api) DownloadMedia(chatJID string, messageID string) (string, error) {
 	}
 	data, err := a.waClient.Download(a.ctx, msg.Media)
 	if err != nil {
+		// Surface the reason: the frontend only shows a generic failure, and
+		// expired-on-server (404/410) needs a different fix than a bad key.
+		log.Printf("DownloadMedia failed for %s in %s: %v", messageID, chatJID, err)
 		return "", fmt.Errorf("failed to download media: %v", err)
 	}
 
@@ -170,6 +173,7 @@ func (a *Api) GetCachedImage(messageID string) (string, error) {
 	}
 	msg, err := a.messageStore.GetMessageWithMediaByID(messageID)
 	if err != nil || msg == nil {
+		log.Printf("GetCachedImage: message %s not found: %v", messageID, err)
 		return "", fmt.Errorf("message not found")
 	}
 	if msg.Media == nil {
@@ -178,6 +182,9 @@ func (a *Api) GetCachedImage(messageID string) (string, error) {
 
 	data, mime, width, height, err := a.downloadMedia(msg)
 	if err != nil {
+		// Surface the reason: the frontend swallows this error, and
+		// expired-on-server (404/410) needs a different fix than a bad key.
+		log.Printf("GetCachedImage: download failed for %s: %v", messageID, err)
 		return "", fmt.Errorf("failed to download image: %w", err)
 	}
 
