@@ -17,4 +17,7 @@ const (
 	SelectArchivedChats = `
 	SELECT chat_jid, archived_at FROM archived_chats;
 	`
+	SelectArchivedChat = `
+	SELECT chat_jid FROM archived_chats WHERE chat_jid = ?;
+	`
 )

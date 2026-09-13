@@ -15,3 +15,5 @@ result
 .pkg-config-wrapped
 .wails-wrapped
 *.AppImage
+docs/
+.agent/

@@ -1913,6 +1913,12 @@ func (ms *MessageStore) GetArchivedChats() map[string]int64 {
 	return archived
 }
 
+func (ms *MessageStore) IsChatArchived(chatJID string) bool {
+	var existing string
+	err := ms.db.QueryRow(query.SelectArchivedChat, chatJID).Scan(&existing)
+	return err == nil
+}
+
 // MarkMessageDeleted replaces a revoked message's content with a deleted
 // marker, mirroring WhatsApp's "This message was deleted".
 func (ms *MessageStore) MarkMessageDeleted(messageID string) error {
