@@ -440,7 +440,7 @@ func (a *Api) mainEventHandler(evt any) {
 		// (including mutes synced from the phone).
 		isFeed := v.Info.Chat.Server == types.NewsletterServer || v.Info.Chat.Server == types.BroadcastServer
 		if messageID != "" && !v.Info.IsFromMe && !isFeed && v.Message.GetReactionMessage() == nil && !a.windowFocused.Load() &&
-			store.GetNotificationsEnabled() && !a.messageStore.IsChatMuted(v.Info.Chat.String()) {
+			store.GetNotificationsEnabled() && !a.messageStore.IsChatMuted(v.Info.Chat.String()) && !a.messageStore.IsChatArchived(v.Info.Chat.String()){
 			a.startBackground(func() { a.notifyIncoming(v, parsedHTML) })
 		}
 
