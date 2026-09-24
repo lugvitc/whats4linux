@@ -3,8 +3,10 @@ package store
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"log"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -52,6 +54,7 @@ type DecodedMessage struct {
 	Forwarded        bool                `json:"forwarded"`
 	Reactions        []Reaction          `json:"reactions"`
 	LinkPreview      *DecodedLinkPreview `json:"link_preview,omitempty"`
+	Poll             *PollInfo           `json:"poll,omitempty"`
 	// Info provides compatibility with frontend that expects types.MessageInfo structure
 	Info DecodedMessageInfo `json:"Info"`
 	// Content provides a minimal content structure for frontend rendering
@@ -63,6 +66,21 @@ type DecodedLinkPreview struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
 	HasPoster   bool   `json:"has_poster"`
+}
+
+// PollInfo carries structured poll data for the frontend.
+type PollInfo struct {
+	Name            string     `json:"name"`
+	Options         []string   `json:"options"`
+	SelectableCount int        `json:"selectableCount"`
+	Votes           []PollVote `json:"votes,omitempty"`
+}
+
+// PollVote represents a single voter's selections on a poll.
+type PollVote struct {
+	SenderJID string   `json:"sender_jid"`
+	Options   []string `json:"options"`
+	UpdatedAt int64    `json:"updated_at"`
 }
 
 // DecodedMessageInfo is a simplified MessageInfo for frontend compatibility
@@ -196,6 +214,12 @@ func NewMessageStore() (*MessageStore, error) {
 			return err
 		}
 		if _, err = tx.Exec(query.CreateLinkPreviewsTable); err != nil {
+			return err
+		}
+		if _, err = tx.Exec(query.CreatePollsTable); err != nil {
+			return err
+		}
+		if _, err = tx.Exec(query.CreatePollVotesTable); err != nil {
 			return err
 		}
 		if _, err = tx.Exec(query.CreateCallHistoryTable); err != nil {
@@ -564,6 +588,10 @@ func (ms *MessageStore) ProcessMessageEvent(ctx context.Context, sd store.LIDSto
 		return targetID
 	}
 
+	// Unwrap before skipping so that poll votes (and similar protocol
+	// messages) wrapped in ephemeral/view-once containers are detected.
+	msg.Message = UnwrapMessage(msg.Message)
+
 	// Protocol noise (poll votes, keep-in-chat, remaining protocol messages)
 	// must not create visible rows or bump the chat list.
 	if ShouldSkipMessage(msg.Message) && msg.Message.GetPinInChatMessage() == nil {
@@ -575,7 +603,7 @@ func (ms *MessageStore) ProcessMessageEvent(ctx context.Context, sd store.LIDSto
 	// Update chatListMap with the new latest message
 	var messageText string
 	if parsedHTML != "" {
-		messageText = parsedHTML
+		messageText = ChatListPreview(parsedHTML)
 	} else {
 		messageText = ExtractMessageText(msg.Message)
 	}
@@ -695,6 +723,22 @@ func (ms *MessageStore) InsertMessage(info *types.MessageInfo, msg *waE2E.Messag
 		}
 	}
 
+	// Extract structured poll data from creation messages so the frontend
+	// can render an interactive poll card instead of a static HTML card.
+	var pollName string
+	var pollOptionsJSON string
+	var pollSelectable int
+	if poll := pollFromMessage(msg); poll != nil {
+		pollName = poll.GetName()
+		opts := make([]string, 0, len(poll.GetOptions()))
+		for _, o := range poll.GetOptions() {
+			opts = append(opts, o.GetOptionName())
+		}
+		optsJSON, _ := json.Marshal(opts)
+		pollOptionsJSON = string(optsJSON)
+		pollSelectable = int(poll.GetSelectableOptionsCount())
+	}
+
 	return ms.runSync(func(tx *sql.Tx) error {
 		_, err := tx.Stmt(ms.stmtInsertMessage).Exec(
 			info.ID,
@@ -715,6 +759,12 @@ func (ms *MessageStore) InsertMessage(info *types.MessageInfo, msg *waE2E.Messag
 		if hasPreview {
 			if _, perr := tx.Exec(query.InsertLinkPreview, info.ID, lpURL, lpTitle, lpDesc, lpThumb,
 				lpDirectPath, lpMediaKey, lpFileSHA, lpFileEncSHA); perr != nil {
+				return perr
+			}
+		}
+		// Store structured poll data if this is a poll creation message.
+		if pollName != "" {
+			if _, perr := tx.Exec(query.InsertPoll, info.ID, pollName, pollOptionsJSON, pollSelectable); perr != nil {
 				return perr
 			}
 		}
@@ -971,6 +1021,19 @@ func (ms *MessageStore) GetMessageWithMediaByID(messageID string) (*ExtendedMess
 	}, nil
 }
 
+// ChatListPreview shortens the stored HTML text for the chat list subtitle.
+var pollPreviewRE = regexp.MustCompile(`<b>([^<]*)</b>`)
+
+func ChatListPreview(text string) string {
+	if !strings.HasPrefix(text, `<div class="msg-card msg-poll">`) {
+		return text
+	}
+	if m := pollPreviewRE.FindStringSubmatch(text); m != nil {
+		return "📊 " + m[1]
+	}
+	return "📊 Poll"
+}
+
 // GetChatList returns the chat list from messages.db
 // GetChatList returns the regular chat list (channels/broadcast excluded).
 func (ms *MessageStore) GetChatList() []ChatMessage {
@@ -1037,7 +1100,7 @@ func (ms *MessageStore) chatListFromQuery(q string) []ChatMessage {
 
 		var messageText string
 		if text.Valid {
-			messageText = text.String
+			messageText = ChatListPreview(text.String)
 		}
 
 		chatMsg := ChatMessage{
@@ -1097,6 +1160,66 @@ func (ms *MessageStore) GetReactionsByMessageID(messageID string) ([]Reaction, e
 	underlying[messageID] = cacheMap
 	mu.Unlock()
 	return reactions, nil
+}
+
+// GetPollByMessageID returns the structured poll data for a poll creation
+func (ms *MessageStore) GetPollByMessageID(messageID string) (PollInfo, error) {
+	var (
+		name     string
+		optsJSON string
+		sel      int
+	)
+	err := ms.db.QueryRow(query.SelectPollByMessageID, messageID).Scan(&name, &optsJSON, &sel)
+	if err != nil {
+		return PollInfo{}, err
+	}
+	var opts []string
+	_ = json.Unmarshal([]byte(optsJSON), &opts)
+	poll := PollInfo{Name: name, Options: opts, SelectableCount: sel}
+	if votes, verr := ms.GetPollVotes(messageID); verr == nil && len(votes) > 0 {
+		poll.Votes = votes
+	}
+	return poll, nil
+}
+
+func (ms *MessageStore) GetPollVotes(pollMessageID string) ([]PollVote, error) {
+	rows, err := ms.db.Query(query.SelectPollVotesByMessageID, pollMessageID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var votes []PollVote
+	for rows.Next() {
+		var (
+			senderJID string
+			optsJSON  string
+			updatedAt int64
+		)
+		if err := rows.Scan(&senderJID, &optsJSON, &updatedAt); err != nil {
+			return nil, err
+		}
+		var opts []string
+		_ = json.Unmarshal([]byte(optsJSON), &opts)
+		votes = append(votes, PollVote{SenderJID: senderJID, Options: opts, UpdatedAt: updatedAt})
+	}
+	return votes, rows.Err()
+}
+
+func (ms *MessageStore) UpsertPollVote(pollMessageID, senderJID string, options []string) error {
+	optsJSON, _ := json.Marshal(options)
+	_, err := ms.db.Exec(query.UpsertPollVote, pollMessageID, senderJID, string(optsJSON), time.Now().UnixMilli())
+	return err
+}
+
+func (ms *MessageStore) DeletePollVote(pollMessageID, senderJID string) error {
+	_, err := ms.db.Exec(query.DeletePollVote, pollMessageID, senderJID)
+	return err
+}
+
+// GetPollMessageInfo returns the stored message info needed to build a poll vote
+func (ms *MessageStore) GetPollMessageInfo(messageID string) (chatJID, senderJID string, isFromMe bool, timestamp int64, err error) {
+	err = ms.db.QueryRow(query.SelectPollMessageInfo, messageID).Scan(&chatJID, &senderJID, &isFromMe, &timestamp)
+	return
 }
 
 // AddReactionToMessage adds or removes a reaction to/from a message
@@ -1387,6 +1510,10 @@ func (ms *MessageStore) GetDecodedMessagesPaged(chatJID string, beforeTimestamp 
 	if err != nil {
 		return nil, err
 	}
+	polls, err := ms.loadPollsByMessageIDs(messageIDs)
+	if err != nil {
+		return nil, err
+	}
 	quoted, err := ms.loadQuotedContents(quotedIDs)
 	if err != nil {
 		return nil, err
@@ -1397,6 +1524,9 @@ func (ms *MessageStore) GetDecodedMessagesPaged(chatJID string, beforeTimestamp 
 		item := &page[i]
 		item.message.Reactions = reactions[item.message.Info.ID]
 		item.message.LinkPreview = item.linkPreview
+		if poll, ok := polls[item.message.Info.ID]; ok {
+			item.message.Poll = &poll
+		}
 
 		var contextInfo *ContextInfo
 		if replyID := item.message.ReplyToMessageID; replyID != "" {
@@ -1448,6 +1578,82 @@ func (ms *MessageStore) loadReactionsByMessageIDs(messageIDs []string) (map[stri
 			return nil, err
 		}
 		result[reaction.MessageID] = append(result[reaction.MessageID], reaction)
+	}
+	return result, rows.Err()
+}
+
+func (ms *MessageStore) loadPollsByMessageIDs(messageIDs []string) (map[string]PollInfo, error) {
+	result := make(map[string]PollInfo, len(messageIDs))
+	if len(messageIDs) == 0 {
+		return result, nil
+	}
+	marks, args := placeholders(messageIDs)
+	rows, err := ms.db.Query(
+		"SELECT message_id, name, options_json, selectable_count FROM polls WHERE message_id IN ("+marks+")",
+		args...,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var (
+			messageID string
+			name      string
+			optsJSON  string
+			sel       int
+		)
+		if err := rows.Scan(&messageID, &name, &optsJSON, &sel); err != nil {
+			return nil, err
+		}
+		var opts []string
+		_ = json.Unmarshal([]byte(optsJSON), &opts)
+		result[messageID] = PollInfo{Name: name, Options: opts, SelectableCount: sel}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	votes, err := ms.loadVotesByPollMessageIDs(messageIDs)
+	if err != nil {
+		return nil, err
+	}
+	for id, poll := range result {
+		vs := votes[id]
+		if len(vs) > 0 {
+			poll.Votes = vs
+			result[id] = poll
+		}
+	}
+	return result, nil
+}
+
+func (ms *MessageStore) loadVotesByPollMessageIDs(messageIDs []string) (map[string][]PollVote, error) {
+	result := make(map[string][]PollVote, len(messageIDs))
+	if len(messageIDs) == 0 {
+		return result, nil
+	}
+	marks, args := placeholders(messageIDs)
+	rows, err := ms.db.Query(
+		"SELECT poll_message_id, sender_jid, options_json, updated_at FROM poll_votes WHERE poll_message_id IN ("+marks+") ORDER BY updated_at ASC",
+		args...,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var (
+			pollMessageID string
+			senderJID     string
+			optsJSON      string
+			updatedAt     int64
+		)
+		if err := rows.Scan(&pollMessageID, &senderJID, &optsJSON, &updatedAt); err != nil {
+			return nil, err
+		}
+		var opts []string
+		_ = json.Unmarshal([]byte(optsJSON), &opts)
+		result[pollMessageID] = append(result[pollMessageID], PollVote{SenderJID: senderJID, Options: opts, UpdatedAt: updatedAt})
 	}
 	return result, rows.Err()
 }
@@ -1739,6 +1945,11 @@ func (ms *MessageStore) GetDecodedMessage(chatJID string, messageID string) (*De
 	reactions, err := ms.GetReactionsByMessageID(messageID)
 	if err == nil {
 		msg.Reactions = reactions
+	}
+
+	// Load structured poll data if present.
+	if poll, pollErr := ms.GetPollByMessageID(messageID); pollErr == nil {
+		msg.Poll = &poll
 	}
 
 	var contextInfo *ContextInfo

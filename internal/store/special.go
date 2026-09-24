@@ -15,6 +15,20 @@ var vcardTelRE = regexp.MustCompile(`(?m)^TEL[^:]*:(.+)$`)
 
 func esc(s string) string { return html.EscapeString(strings.TrimSpace(s)) }
 
+// pollFromMessage returns the poll payload
+func pollFromMessage(msg *waE2E.Message) *waE2E.PollCreationMessage {
+	if msg == nil {
+		return nil
+	}
+	if poll := msg.GetPollCreationMessage(); poll != nil {
+		return poll
+	}
+	if poll := msg.GetPollCreationMessageV2(); poll != nil {
+		return poll
+	}
+	return msg.GetPollCreationMessageV3()
+}
+
 func mapsLink(lat, lng float64, label string) string {
 	if label == "" {
 		label = "Open in Maps"
@@ -43,13 +57,7 @@ func DescribeSpecialMessage(msg *waE2E.Message) (string, bool) {
 		return "", false
 	}
 
-	poll := msg.GetPollCreationMessage()
-	if poll == nil {
-		poll = msg.GetPollCreationMessageV2()
-	}
-	if poll == nil {
-		poll = msg.GetPollCreationMessageV3()
-	}
+	poll := pollFromMessage(msg)
 
 	switch {
 	case poll != nil:
@@ -162,16 +170,10 @@ func SpecialPreview(msg *waE2E.Message) (string, bool) {
 	if msg == nil {
 		return "", false
 	}
-	switch {
-	case msg.GetPollCreationMessage() != nil, msg.GetPollCreationMessageV2() != nil, msg.GetPollCreationMessageV3() != nil:
-		poll := msg.GetPollCreationMessage()
-		if poll == nil {
-			poll = msg.GetPollCreationMessageV2()
-		}
-		if poll == nil {
-			poll = msg.GetPollCreationMessageV3()
-		}
+	if poll := pollFromMessage(msg); poll != nil {
 		return "📊 " + esc(poll.GetName()), true
+	}
+	switch {
 	case msg.GetLocationMessage() != nil, msg.GetLiveLocationMessage() != nil:
 		return "📍 Location", true
 	case msg.GetContactMessage() != nil:

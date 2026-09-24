@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, lazy, Suspense } from "react"
+import React, { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react"
 import { store } from "../../../wailsjs/go/models"
 import {
   DownloadImageToFile,
@@ -8,8 +8,9 @@ import {
 } from "../../../wailsjs/go/api/Api"
 import { MediaContent } from "./MediaContent"
 import { QuotedMessage } from "./QuotedMessage"
-import { ReactionBubble } from "./Reactions"
+import { ReactionBubble, ReactionDetails } from "./Reactions"
 import { LinkPreview } from "./LinkPreview"
+import { PollCard } from "./PollCard"
 import clsx from "clsx"
 import { MessageMenu } from "./MessageMenu"
 import {
@@ -80,6 +81,36 @@ const formatSize = (bytes: number) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i]
 }
 
+// WhatsApp-style truncation for overly long text.
+const LONG_TEXT_CHARS = 280
+const LONG_TEXT_LINES = 6
+
+function isLongText(html: string): boolean {
+  const stripped = html.replace(/<[^>]*>/g, "").replace(/&\w+;/g, "")
+  if (!stripped.trim()) return false
+  return stripped.length > LONG_TEXT_CHARS || stripped.split(/\n/).length >= LONG_TEXT_LINES
+}
+
+function ReadMoreText({ html, className }: { html: string; className?: string }) {
+  const [expanded, setExpanded] = useState(false)
+  if (isLongText(html)) {
+    return (
+      <div className={className}>
+        <div className={clsx(!expanded && "line-clamp-6")}>
+          <span dangerouslySetInnerHTML={{ __html: html }} />
+        </div>
+        <button
+          onClick={() => setExpanded(v => !v)}
+          className="mt-1 text-[#53bdeb] text-xs font-medium hover:opacity-80"
+        >
+          {expanded ? "Read less" : "Read more"}
+        </button>
+      </div>
+    )
+  }
+  return <div className={className} dangerouslySetInnerHTML={{ __html: html }} />
+}
+
 export function MessageItem({
   message,
   chatId,
@@ -111,6 +142,9 @@ export function MessageItem({
   const addReactionToMessage = useMessageStore(state => state.addReactionToMessage)
   const [showReactionPicker, setShowReactionPicker] = useState(false)
   const [showFullEmoji, setShowFullEmoji] = useState(false)
+  const [showReactionDetails, setShowReactionDetails] = useState(false)
+  const [textExpanded, setTextExpanded] = useState(false)
+  const reactionPillRef = useRef<HTMLDivElement>(null)
   // Derived directly from the message; no state/effect needed (a state+effect
   // here forced an extra re-render per message on mount).
   const reactions = message.reactions ?? []
@@ -118,7 +152,7 @@ export function MessageItem({
   // Helper function to render caption with markdown
   const renderCaption = (caption: string | undefined) => {
     if (!caption) return null
-    return <div className="mt-1" dangerouslySetInnerHTML={{ __html: caption }} />
+    return <ReadMoreText html={caption} className="mt-1" />
   }
 
   const handleImageDownload = async () => {
@@ -219,17 +253,64 @@ export function MessageItem({
   const renderContent = () => {
     if (!content) return <span className="italic opacity-50">Empty Message</span>
     else if (content.conversation || content.extendedTextMessage?.text) {
+      // Structured poll data supersedes the static HTML card so polls can be
+      // voted on right from the app. Also never given Read more treatment.
+      if (message.poll) {
+        return (
+          <div className="flow-root">
+            <PollCard
+              pollName={message.poll.name}
+              options={message.poll.options}
+              selectableCount={message.poll.selectableCount}
+              messageId={message.Info.ID}
+              votes={message.poll.votes}
+            />
+            {timeMeta(true)}
+          </div>
+        )
+      }
       const htmlContent = content.conversation || content.extendedTextMessage?.text || ""
       const stripped = htmlContent
         .replace(/<[^>]*>/g, "")
         .replace(/&\w+;/g, "")
         .trim()
       const emojiOnly = stripped.length > 0 && stripped.length <= 16 && EMOJI_ONLY_RE.test(stripped)
+      // Polls and other special HTML cards should never get Read more treatment.
+      const isPoll = htmlContent.includes("msg-poll") || htmlContent.includes("msg-card")
+      const long = !emojiOnly && !isPoll && isLongText(htmlContent)
       return (
         <>
-          <div className={clsx("[display:flow-root]", emojiOnly && "text-[32px] leading-10")}>
-            <span dangerouslySetInnerHTML={{ __html: htmlContent }} />
-            {timeMeta(true)}
+          <div className={clsx("flow-root", emojiOnly && "text-[32px] leading-10")}>
+            {long && !textExpanded ? (
+              <div className="line-clamp-6">
+                <span dangerouslySetInnerHTML={{ __html: htmlContent }} />
+              </div>
+            ) : (
+              <span dangerouslySetInnerHTML={{ __html: htmlContent }} />
+            )}
+            {long && !textExpanded ? (
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <button
+                  onClick={() => setTextExpanded(true)}
+                  className="text-[#53bdeb] text-xs font-medium leading-none hover:opacity-80"
+                >
+                  Read more
+                </button>
+                {timeMeta(false)}
+              </div>
+            ) : (
+              <>
+                {timeMeta(true)}
+                {long && (
+                  <button
+                    onClick={() => setTextExpanded(false)}
+                    className="mt-1 block text-[#53bdeb] text-xs font-medium hover:opacity-80"
+                  >
+                    Read less
+                  </button>
+                )}
+              </>
+            )}
           </div>
           {htmlContent.includes('class="msg-link"') && (
             <LinkPreview messageId={message.Info.ID} preview={message.link_preview ?? null} />
@@ -361,8 +442,8 @@ export function MessageItem({
               "bg-transparent shadow-none": isSticker,
               // WhatsApp sharpens the corner facing the sender on the first
               // bubble of a run.
-              "rounded-tl-[4px]": firstInGroup && !isFromMe && !isSticker,
-              "rounded-tr-[4px]": firstInGroup && isFromMe && !isSticker,
+              "rounded-tl-sm": firstInGroup && !isFromMe && !isSticker,
+              "rounded-tr-sm": firstInGroup && isFromMe && !isSticker,
 
               // SENT
               "bg-sent-bubble-bg dark:bg-sent-bubble-dark-bg text-(--color-sent-bubble-text) dark:text-(--color-sent-bubble-dark-text)":
@@ -471,13 +552,14 @@ export function MessageItem({
           {contextInfo?.quotedMessage && (
             <QuotedMessage contextInfo={contextInfo} onQuotedClick={onQuotedClick} />
           )}
-          <div className="text-sm break-words whitespace-pre-wrap">{renderContent()}</div>
+          <div className="text-sm wrap-break-words whitespace-pre-wrap">{renderContent()}</div>
           {!isTextContent && <div className="mt-1 flex justify-end">{timeMeta(false)}</div>}
 
           {/* Reactions */}
           {reactions.length > 0 && (
             <div
-              onClick={() => setShowReactionPicker(v => !v)}
+              ref={reactionPillRef}
+              onClick={() => setShowReactionDetails(true)}
               className={clsx(
                 "absolute -bottom-3 z-9999 cursor-pointer",
                 isFromMe ? "right-2" : "left-2",
@@ -485,6 +567,18 @@ export function MessageItem({
             >
               <ReactionBubble reactions={reactions} isFromMe={isFromMe} />
             </div>
+          )}
+
+          {showReactionDetails && reactions.length > 0 && (
+            <ReactionDetails
+              reactions={reactions}
+              isFromMe={isFromMe}
+              messageText={(content?.conversation || content?.extendedTextMessage?.text || "")
+                .replace(/<[^>]*>/g, "")
+                .replace(/&\w+;/g, "")}
+              anchorRef={reactionPillRef}
+              onClose={() => setShowReactionDetails(false)}
+            />
           )}
         </div>
       </div>

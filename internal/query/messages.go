@@ -166,4 +166,65 @@ const (
 	SET chat_jid = ?
 	WHERE chat_jid = ?;
 	`
+
+	CreatePollsTable = `
+	CREATE TABLE IF NOT EXISTS polls (
+		message_id TEXT PRIMARY KEY,
+		name TEXT NOT NULL,
+		options_json TEXT NOT NULL,
+		selectable_count INTEGER NOT NULL DEFAULT 0,
+		FOREIGN KEY (message_id) REFERENCES messages(message_id) ON DELETE CASCADE
+	);
+	`
+
+	InsertPoll = `
+	INSERT OR REPLACE INTO polls (message_id, name, options_json, selectable_count)
+	VALUES (?, ?, ?, ?)
+	`
+
+	SelectPollByMessageID = `
+	SELECT name, options_json, selectable_count
+	FROM polls
+	WHERE message_id = ?
+	LIMIT 1
+	`
+
+	SelectPollMessageInfo = `
+	SELECT chat_jid, sender_jid, is_from_me, timestamp
+	FROM messages
+	WHERE message_id = ?
+	`
+
+	CreatePollVotesTable = `
+	CREATE TABLE IF NOT EXISTS poll_votes (
+		poll_message_id TEXT NOT NULL,
+		sender_jid TEXT NOT NULL,
+		options_json TEXT NOT NULL,
+		updated_at INTEGER NOT NULL,
+		PRIMARY KEY (poll_message_id, sender_jid),
+		FOREIGN KEY (poll_message_id) REFERENCES messages(message_id) ON DELETE CASCADE
+	);
+	`
+
+	UpsertPollVote = `
+	INSERT OR REPLACE INTO poll_votes (poll_message_id, sender_jid, options_json, updated_at)
+	VALUES (?, ?, ?, ?)
+	`
+
+	DeletePollVote = `
+	DELETE FROM poll_votes WHERE poll_message_id = ? AND sender_jid = ?
+	`
+
+	SelectPollVotesByMessageID = `
+	SELECT sender_jid, options_json, updated_at
+	FROM poll_votes
+	WHERE poll_message_id = ?
+	ORDER BY updated_at ASC
+	`
+
+	SelectPollVotesByMessageIDsPrefix = `
+	SELECT poll_message_id, sender_jid, options_json, updated_at
+	FROM poll_votes
+	WHERE poll_message_id IN (
+	`
 )

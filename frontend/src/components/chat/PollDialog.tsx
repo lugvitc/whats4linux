@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { SendPoll } from "../../../wailsjs/go/api/Api"
+import { SendMessage } from "../../../wailsjs/go/api/Api"
 
 const MAX_OPTIONS = 12
 
@@ -36,12 +36,12 @@ export function PollDialog({ chatId, onClose }: { chatId: string; onClose: () =>
     setSending(true)
     setError("")
     try {
-      await SendPoll(
-        chatId,
-        question.trim(),
-        options.map(o => o.trim()).filter(Boolean),
-        multiple ? 0 : 1,
-      )
+      await SendMessage(chatId, {
+        type: "poll",
+        text: question.trim(),
+        pollOptions: options.map(o => o.trim()).filter(Boolean),
+        selectableCount: multiple ? 0 : 1,
+      })
       onClose()
     } catch (err) {
       console.error("Failed to send poll:", err)

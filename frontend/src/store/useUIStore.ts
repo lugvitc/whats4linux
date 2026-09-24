@@ -19,6 +19,8 @@ interface UIStore {
   lightboxKind: "image" | "video"
   openLightbox: (src: string, kind?: "image" | "video") => void
   closeLightbox: () => void
+  pollResultsFor: string | null
+  setPollResultsFor: (messageId: string | null) => void
 }
 
 export const useUIStore = create<UIStore>(set => ({
@@ -38,6 +40,9 @@ export const useUIStore = create<UIStore>(set => ({
   setSidebarOpen: open => set({ sidebarOpen: open }),
   setShowEmojiPicker: show => set({ showEmojiPicker: show }),
   setChatInfoOpen: open => set({ chatInfoOpen: open }),
+
+  pollResultsFor: null,
+  setPollResultsFor: messageId => set({ pollResultsFor: messageId }),
 
   setTypingIndicator: (chatId, isTyping) =>
     set(state => ({

@@ -1,7 +1,10 @@
 package api
 
 import (
+	"context"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"strings"
@@ -11,11 +14,14 @@ import (
 	"github.com/lugvitc/whats4linux/internal/store"
 	mtypes "github.com/lugvitc/whats4linux/internal/types"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"go.mau.fi/util/random"
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/proto/waCommon"
 	"go.mau.fi/whatsmeow/proto/waE2E"
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
+	"go.mau.fi/whatsmeow/util/gcmutil"
+	"go.mau.fi/whatsmeow/util/hkdfutil"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -28,6 +34,8 @@ type MessageContent struct {
 	QuotedMessageID string   `json:"quotedMessageId,omitempty"`
 	Mentions        []string `json:"mentions,omitempty"`
 	ClientTempID    string   `json:"clientTempId,omitempty"`
+	PollOptions     []string `json:"pollOptions,omitempty"`
+	SelectableCount int      `json:"selectableCount,omitempty"`
 }
 
 func (a *Api) processMessageText(msg *waE2E.Message) string {
@@ -459,6 +467,20 @@ func (a *Api) SendMessage(chatJID string, content MessageContent) (string, error
 		msgContent = &waE2E.Message{
 			StickerMessage: stickerMsg,
 		}
+	case "poll":
+		// Poll nameText is the question, PollOptions the choices. selectableCount
+		// 1 = single answer, 0 or len(options) = multiple answers allowed.
+		name := strings.TrimSpace(content.Text)
+		clean := make([]string, 0, len(content.PollOptions))
+		for _, o := range content.PollOptions {
+			if o = strings.TrimSpace(o); o != "" {
+				clean = append(clean, o)
+			}
+		}
+		if name == "" || len(clean) < 2 {
+			return "", fmt.Errorf("a poll needs a question and at least two options")
+		}
+		msgContent = a.waClient.BuildPollCreation(name, clean, content.SelectableCount)
 	default:
 		return "", fmt.Errorf("unsupported message type: %s", content.Type)
 	}
@@ -505,6 +527,8 @@ func (a *Api) SendMessage(chatJID string, content MessageContent) (string, error
 			messageText = "document"
 		case msgContent.GetStickerMessage() != nil:
 			messageText = "sticker"
+		case msgContent.GetPollCreationMessage() != nil:
+			messageText = "📊 " + msgContent.GetPollCreationMessage().GetName()
 		default:
 			messageText = "message"
 		}
@@ -656,28 +680,153 @@ func (a *Api) sendAndStoreLocal(chat types.JID, msgContent *waE2E.Message, previ
 	return resp.ID, nil
 }
 
-// SendPoll creates a poll in the chat. selectableCount 1 = single answer,
-// 0 or len(options) = multiple answers allowed.
-func (a *Api) SendPoll(chatJID, name string, options []string, selectableCount int) (string, error) {
+// SendPollVote casts a vote on an existing poll. pollMessageID is the stored
+// poll creation message ID. The encryption key is derived by whatsmeow from
+// the original message's stored msg-secret, so no extra state is needed here.
+func (a *Api) SendPollVote(pollMessageID string, selectedOptions []string) error {
 	if a.waClient.Store.ID == nil {
-		return "", fmt.Errorf("client not logged in")
+		return fmt.Errorf("client not logged in")
 	}
-	chat, err := types.ParseJID(chatJID)
+	pollChat, pollSender, isFromMe, _, err := a.messageStore.GetPollMessageInfo(pollMessageID)
 	if err != nil {
-		return "", err
+		return fmt.Errorf("poll message not found: %w", err)
 	}
-	name = strings.TrimSpace(name)
-	clean := make([]string, 0, len(options))
-	for _, o := range options {
-		if o = strings.TrimSpace(o); o != "" {
-			clean = append(clean, o)
-		}
+	chat, err := types.ParseJID(pollChat)
+	if err != nil {
+		return err
 	}
-	if name == "" || len(clean) < 2 {
-		return "", fmt.Errorf("a poll needs a question and at least two options")
+	sender, err := types.ParseJID(pollSender)
+	if err != nil {
+		return err
 	}
-	msg := a.waClient.BuildPollCreation(name, clean, selectableCount)
-	return a.sendAndStoreLocal(chat, msg, "📊 "+name)
+	pollInfo := &types.MessageInfo{
+		MessageSource: types.MessageSource{
+			Chat:     chat,
+			Sender:   sender,
+			IsFromMe: isFromMe,
+			IsGroup:  chat.Server == types.GroupServer,
+		},
+		ID:        types.MessageID(pollMessageID),
+		Timestamp: time.Unix(0, 0),
+	}
+	voteMsg, err := a.buildPollVoteLID(a.ctx, pollInfo, selectedOptions)
+	if err != nil {
+		return fmt.Errorf("failed to build poll vote: %w", err)
+	}
+	ownJID := canonicalUserJID(a.ctx, a.waClient, a.waClient.Store.GetJID()).String()
+	if err := a.messageStore.UpsertPollVote(pollMessageID, ownJID, selectedOptions); err != nil {
+		return fmt.Errorf("failed to store vote locally: %w", err)
+	}
+	a.emitMessageUpdate(chat.String(), pollMessageID)
+	if _, err := a.waClient.SendMessage(a.ctx, chat, &waE2E.Message{PollUpdateMessage: voteMsg}); err != nil {
+		a.messageStore.DeletePollVote(pollMessageID, ownJID)
+		a.emitMessageUpdate(chat.String(), pollMessageID)
+		return fmt.Errorf("failed to send poll vote: %w", err)
+	}
+	return nil
+}
+
+func (a *Api) emitMessageUpdate(chatJID, messageID string) {
+	updated, err := a.messageStore.GetDecodedMessage(chatJID, messageID)
+	if err != nil {
+		log.Println("Failed to get decoded message after message update:", err)
+		return
+	}
+	runtime.EventsEmit(a.ctx, "wa:new_message", map[string]any{
+		"chatId":  chatJID,
+		"message": updated,
+	})
+}
+
+// buildPollVoteLID builds a poll vote message using the LID (now the fallback
+// to the plain JID if no LID migration has happened) as the modification
+// sender. whatsmeow's own BuildPollVote uses the plain JID whenever the poll
+// creator is a non-LID user, which breaks decryption on LID-migrated devices
+// that see our message sender as our LID. Reactions (which work cross-device)
+// always use the LID, so we mirror that here.
+func (a *Api) buildPollVoteLID(ctx context.Context, pollInfo *types.MessageInfo, optionNames []string) (*waE2E.PollUpdateMessage, error) {
+	plaintext, err := proto.Marshal(&waE2E.PollVoteMessage{
+		SelectedOptions: hashPollOptions(optionNames),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal poll vote protobuf: %w", err)
+	}
+	ownID := a.waClient.Store.GetLID()
+	if ownID.IsEmpty() {
+		ownID = a.waClient.Store.GetJID()
+	}
+	baseEncKey, storedOrigSender, err := a.waClient.Store.MsgSecrets.GetMessageSecret(ctx, pollInfo.Chat, pollInfo.Sender, pollInfo.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get original message secret key: %w", err)
+	}
+	if baseEncKey == nil {
+		return nil, whatsmeow.ErrOriginalMessageSecretNotFound
+	}
+	secretKey, additionalData := generatePollVoteSecretKey(ownID, pollInfo.ID, storedOrigSender, baseEncKey)
+	iv := random.Bytes(12)
+	ciphertext, err := gcmutil.Encrypt(secretKey, iv, plaintext, additionalData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encrypt poll vote: %w", err)
+	}
+	return &waE2E.PollUpdateMessage{
+		PollCreationMessageKey: pollCreationMessageKey(pollInfo),
+		Vote: &waE2E.PollEncValue{
+			EncPayload: ciphertext,
+			EncIV:      iv,
+		},
+		SenderTimestampMS: proto.Int64(time.Now().UnixMilli()),
+	}, nil
+}
+
+// pollOptionHexIndex maps each poll option name to its hex SHA-256 digest,
+// the format used in PollVoteMessage hashed selections.
+func pollOptionHexIndex(options []string) map[string]string {
+	index := make(map[string]string, len(options))
+	for _, name := range options {
+		h := sha256.Sum256([]byte(name))
+		index[hex.EncodeToString(h[:])] = name
+	}
+	return index
+}
+
+func hashPollOptions(optionNames []string) [][]byte {
+	optionHashes := make([][]byte, len(optionNames))
+	for i, option := range optionNames {
+		optionHash := sha256.Sum256([]byte(option))
+		optionHashes[i] = optionHash[:]
+	}
+	return optionHashes
+}
+
+func pollCreationMessageKey(msgInfo *types.MessageInfo) *waCommon.MessageKey {
+	creationKey := &waCommon.MessageKey{
+		RemoteJID: proto.String(msgInfo.Chat.String()),
+		FromMe:    proto.Bool(msgInfo.IsFromMe),
+		ID:        proto.String(msgInfo.ID),
+	}
+	if msgInfo.IsGroup {
+		creationKey.Participant = proto.String(msgInfo.Sender.String())
+	}
+	return creationKey
+}
+
+// generatePollVoteSecretKey mirrors whatsmeow's generateMsgSecretKey for the
+// "Poll Vote" modification type: HKDF-SHA256 over the original message ID,
+// original sender, modification sender and use case.
+func generatePollVoteSecretKey(modificationSender types.JID, origMsgID types.MessageID, origMsgSender types.JID, origMsgSecret []byte) ([]byte, []byte) {
+	const modificationType = "Poll Vote"
+	origMsgSenderStr := origMsgSender.ToNonAD().String()
+	modificationSenderStr := modificationSender.ToNonAD().String()
+
+	useCaseSecret := make([]byte, 0, len(origMsgID)+len(origMsgSenderStr)+len(modificationSenderStr)+len(modificationType))
+	useCaseSecret = append(useCaseSecret, origMsgID...)
+	useCaseSecret = append(useCaseSecret, origMsgSenderStr...)
+	useCaseSecret = append(useCaseSecret, modificationSenderStr...)
+	useCaseSecret = append(useCaseSecret, modificationType...)
+
+	secretKey := hkdfutil.SHA256(origMsgSecret, nil, useCaseSecret, 32)
+	additionalData := fmt.Appendf(nil, "%s\x00%s", origMsgID, modificationSenderStr)
+	return secretKey, additionalData
 }
 
 // SendShareContact shares a contact card in the chat.

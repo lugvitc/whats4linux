@@ -17,6 +17,7 @@ import { MessageList, type MessageListHandle } from "../components/chat/MessageL
 import { ChatHeader } from "../components/chat/ChatHeader"
 import { ChatInput } from "../components/chat/ChatInput"
 import { ChatInfo } from "../components/chat/ChatInfo"
+import { PollVotesSidebar } from "../components/chat/PollVotesSidebar"
 import clsx from "clsx"
 import { formatPhone } from "../lib/utils"
 import gsap from "gsap"
@@ -54,8 +55,15 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
     addPendingMessage,
     updatePendingMessageToSent,
   } = useMessageStore()
-  const { setTypingIndicator, showEmojiPicker, setShowEmojiPicker, chatInfoOpen, setChatInfoOpen } =
-    useUIStore()
+  const {
+    setTypingIndicator,
+    showEmojiPicker,
+    setShowEmojiPicker,
+    chatInfoOpen,
+    setChatInfoOpen,
+    pollResultsFor,
+    setPollResultsFor,
+  } = useUIStore()
   const { chatsById } = useChatStore()
 
   const chatMessages = messages[chatId] || []
@@ -184,6 +192,10 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
         setChatInfoOpen(false)
         return
       }
+      if (pollResultsFor) {
+        setPollResultsFor(null)
+        return
+      }
       if (showEmojiPicker) {
         setShowEmojiPicker(false)
         return
@@ -200,7 +212,19 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [chatInfoOpen, showEmojiPicker, replyingTo, onBack, setChatInfoOpen, setShowEmojiPicker])
+  }, [
+    chatInfoOpen,
+    showEmojiPicker,
+    replyingTo,
+    onBack,
+    setChatInfoOpen,
+    setShowEmojiPicker,
+    pollResultsFor,
+    setPollResultsFor,
+  ])
+
+  const activePoll =
+    (pollResultsFor && chatMessages.find(m => m.Info?.ID === pollResultsFor)?.poll) || null
 
   const loadInitialMessages = useCallback(
     async (generation: number) => {
@@ -848,6 +872,14 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
         chatAvatar={chatAvatar}
         isOpen={chatInfoOpen}
         onClose={() => setChatInfoOpen(false)}
+      />
+
+      <PollVotesSidebar
+        poll={activePoll}
+        isOpen={!!pollResultsFor}
+        onClose={() => setPollResultsFor(null)}
+        chatId={chatId}
+        chatType={chatType}
       />
     </div>
   )

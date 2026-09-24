@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
@@ -405,6 +406,75 @@ func (a *Api) Login() error {
 	return nil
 }
 
+// keeping these comments cuz janky implementation, if you figure out a better implementation, pls fix
+// handlePollVote decrypts an incoming poll vote, maps the selected option
+// hashes back to option names, and stores it so the poll card can show tallies.
+// For our own votes (echoes of votes we sent from this app or from the phone)
+// we always store under our canonical PN JID so that:
+//   - W4L-sent echo → same JID + same options → INSERT OR REPLACE is a no-op
+//   - Phone vote change → same JID + different options → vote is updated
+func (a *Api) handlePollVote(v *events.Message) error {
+	pollMessageID := v.Message.GetPollUpdateMessage().GetPollCreationMessageKey().GetID()
+	if pollMessageID == "" {
+		return fmt.Errorf("poll vote missing poll creation message id")
+	}
+
+	storeJID := canonicalUserJID(a.ctx, a.waClient, v.Info.Sender).String()
+	if ownJID := a.pollVoteSelfJID(v.Info.Sender); ownJID != "" {
+		storeJID = ownJID
+	}
+
+	vote, err := a.waClient.DecryptPollVote(a.ctx, v)
+	if err != nil {
+		log.Printf("Failed to decrypt poll vote for %s: %v\n", pollMessageID, err)
+		return err
+	}
+	poll, err := a.messageStore.GetPollByMessageID(pollMessageID)
+	if err != nil {
+		log.Printf("Could not resolve options for poll vote %s: %v\n", pollMessageID, err)
+		return err
+	}
+	optionIndex := pollOptionHexIndex(poll.Options)
+	var selected []string
+	for _, hash := range vote.GetSelectedOptions() {
+		if name, ok := optionIndex[hex.EncodeToString(hash)]; ok {
+			selected = append(selected, name)
+		}
+	}
+	if err := a.messageStore.UpsertPollVote(pollMessageID, storeJID, selected); err != nil {
+		log.Println("Failed to store poll vote:", err)
+		return err
+	}
+	return nil
+}
+
+// keeping these comments cuz janky implementation, if you figure out a better implementation, pls fix
+// pollVoteSelfJID reports whether sender is one of our own identities
+// (canonical PN, LID lookalike, or reversed LID→PN lookup) and returns our
+// canonical PN JID so own-vote echoes always overwrite the same row. Returns
+// "" when the sender is someone else or we aren't logged in.
+func (a *Api) pollVoteSelfJID(sender types.JID) string {
+	if a.waClient.Store.ID == nil {
+		return ""
+	}
+	ownJID := canonicalUserJID(a.ctx, a.waClient, a.waClient.Store.GetJID()).String()
+	if canonicalUserJID(a.ctx, a.waClient, sender).String() == ownJID {
+		return ownJID
+	}
+	agent := sender.ActualAgent()
+	if agent != types.LIDDomain && agent != types.HostedLIDDomain {
+		return ""
+	}
+	ownLID := a.waClient.Store.GetLID()
+	if ownLID.User != "" && ownLID.User == sender.User && ownLID.Server == sender.Server {
+		return ownJID
+	}
+	if senderPN, err := a.waClient.Store.LIDs.GetPNForLID(a.ctx, sender); err == nil && senderPN.User == a.waClient.Store.GetJID().ToNonAD().User {
+		return ownJID
+	}
+	return ""
+}
+
 func (a *Api) mainEventHandler(evt any) {
 	a.eventMu.RLock()
 	defer a.eventMu.RUnlock()
@@ -413,6 +483,15 @@ func (a *Api) mainEventHandler(evt any) {
 	}
 	switch v := evt.(type) {
 	case *events.Message:
+		// Poll votes (PollUpdateMessage) never create a visible chat row, but
+		// must be decrypted and stored so the poll card can show tallies.
+		if pollUpdate := v.Message.GetPollUpdateMessage(); pollUpdate != nil {
+			if err := a.handlePollVote(v); err == nil {
+				a.emitMessageUpdate(v.Info.Chat.String(), pollUpdate.GetPollCreationMessageKey().GetID())
+			}
+			return
+		}
+
 		parsedHTML := a.processMessageText(v.Message)
 
 		// Handle message edits: re-parse the edited content
@@ -447,7 +526,10 @@ func (a *Api) mainEventHandler(evt any) {
 		// Respects the global notification switch and per-chat mutes
 		// (including mutes synced from the phone).
 		isFeed := v.Info.Chat.Server == types.NewsletterServer || v.Info.Chat.Server == types.BroadcastServer
-		if messageID != "" && !v.Info.IsFromMe && !isFeed && v.Message.GetReactionMessage() == nil && !a.windowFocused.Load() &&
+		isPoll := v.Message.GetPollCreationMessage() != nil ||
+			v.Message.GetPollCreationMessageV2() != nil ||
+			v.Message.GetPollCreationMessageV3() != nil
+		if messageID != "" && !v.Info.IsFromMe && !isFeed && !isPoll && v.Message.GetReactionMessage() == nil && !a.windowFocused.Load() &&
 			store.GetNotificationsEnabled() && !a.messageStore.IsChatMuted(v.Info.Chat.String()) {
 			a.startBackground(func() { a.notifyIncoming(v, parsedHTML) })
 		}
@@ -461,7 +543,7 @@ func (a *Api) mainEventHandler(evt any) {
 					return
 				}
 
-				targetText := targetMsg.Text
+				targetText := store.ChatListPreview(targetMsg.Text)
 				senderName := v.Info.PushName
 				if senderName == "" && v.Info.Sender.User != "" {
 					senderName = v.Info.Sender.User
@@ -511,6 +593,7 @@ func (a *Api) mainEventHandler(evt any) {
 		if err := a.waClient.SendPresence(a.ctx, types.PresenceAvailable); err != nil {
 			log.Println("failed to send available presence:", err)
 		}
+		a.startBackground(func() { _, _ = a.GetSelfAvatar(false) })
 		// Run migration for messages.db
 		err := a.messageStore.MigrateLIDToPN(a.ctx, a.waClient.Store.LIDs)
 		if err != nil {
