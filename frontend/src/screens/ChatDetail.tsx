@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react"
 import {
   SendMessage,
+  EditMessage,
   FetchMessagesPaged,
   GetPinnedMessages,
   SendChatPresence,
@@ -72,6 +73,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [selectedFileType, setSelectedFileType] = useState<string>("")
   const [replyingTo, setReplyingTo] = useState<store.DecodedMessage | null>(null)
+  const [editingMessage, setEditingMessage] = useState<store.DecodedMessage | null>(null)
   const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null)
 
   const [mentionableContacts, setMentionableContacts] = useState<any[]>([])
@@ -82,6 +84,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
   const [isReady, setIsReady] = useState(false)
   const [isAtBottom, setIsAtBottom] = useState(true)
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
+  const visibleHighlightedMessageId = editingMessage?.Info.ID ?? highlightedMessageId
   const [firstItemIndex, setFirstItemIndex] = useState(START_INDEX)
 
   const messageListRef = useRef<MessageListHandle>(null)
@@ -394,13 +397,13 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
     if (!isComposingRef.current) {
       isComposingRef.current = true
       setTypingIndicator(chatId, true)
-      SendChatPresence(chatId, "composing", "").catch(() => {})
+      SendChatPresence(chatId, "composing", "").catch(() => { })
     }
 
     if (typingTimeout) clearTimeout(typingTimeout)
     const timeout = setTimeout(() => {
       isComposingRef.current = false
-      SendChatPresence(chatId, "paused", "").catch(() => {})
+      SendChatPresence(chatId, "paused", "").catch(() => { })
       setTypingIndicator(chatId, false)
     }, 1500)
     setTypingTimeout(timeout)
@@ -408,7 +411,19 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
 
   const handleSendMessage = async () => {
     if (!inputText.trim() && !pastedImage && !selectedFile) return
-
+    if (editingMessage) {
+      return EditMessage(
+        chatId,
+        editingMessage.Info.Sender,
+        editingMessage.Info.ID,
+        inputText
+      )
+        .then(() => {
+          setEditingMessage(null);
+          setInputText("")
+        })
+        .catch(err => console.error("Failed to edit:", err))
+    }
     const textToSend = inputText
     const imageToSend = pastedImage
     const fileToSend = selectedFile
@@ -615,6 +630,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
     setHasMore(true)
     setIsLoadingMore(false)
     setIsAtBottom(true)
+    setEditingMessage(null);
     setActiveChatId(chatId)
     const initialRequest = loadInitialMessages(generation)
     initialLoadPromiseRef.current = initialRequest
@@ -778,13 +794,17 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
               firstItemIndex={firstItemIndex}
               sentMediaCache={sentMediaCache}
               onReply={setReplyingTo}
+              onEdit={message => {
+                setEditingMessage(message)
+                setInputText(message.Content?.conversation || message.Content?.extendedTextMessage?.text || "") // TODO: this returns raw html, not markdown/formatted text.
+              }}
               onQuotedClick={handleQuotedClick}
               onLoadMore={() => void loadMoreMessages()}
               onAtBottomChange={handleAtBottomChange}
               pinnedIds={pinnedIds}
               isLoading={isLoadingMore}
               hasMore={isReady && hasMore}
-              highlightedMessageId={highlightedMessageId}
+              highlightedMessageId={visibleHighlightedMessageId}
             />
           </div>
         </div>
