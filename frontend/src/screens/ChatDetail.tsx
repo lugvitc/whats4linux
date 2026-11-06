@@ -652,7 +652,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
   useEffect(() => {
     // New messages from events still use the old Message format for real-time updates
     // They will be compatible due to the Info and Content structure
-    const unsub = EventsOn(
+    const unsubNewMessage = EventsOn(
       "wa:new_message",
       (data: { chatId: string; message: any; clientTempId?: string }) => {
         if (data?.chatId === chatId && data.message?.Info?.ID) {
@@ -689,7 +689,47 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
       },
     )
 
-    return () => unsub()
+    const unsubEditedMessage = EventsOn(
+      "wa:edited_message",
+      (data: { chatId: string; message: any; clientTempId?: string }) => {
+        if (data?.chatId === chatId && data.message?.Info?.ID) {
+          // Use getState to avoid depending on messages array and causing re-subscriptions
+          const currentMessages = useMessageStore.getState().messages[chatId] || []
+          const hasPendingMessage = currentMessages.some((m: any) => m.isPending)
+
+          if (hasPendingMessage && data.message.Info?.IsFromMe && data.clientTempId) {
+            const pendingMessages = currentMessages.filter((m: any) => m.isPending)
+            const pending = pendingMessages.find((m: any) => m.tempId === data.clientTempId)
+            if (pending) {
+              for (const body of [
+                "imageMessage",
+                "videoMessage",
+                "audioMessage",
+                "stickerMessage",
+              ]) {
+                const transient =
+                  pending.Content?.[body]?._tempImage || pending.Content?.[body]?._tempFile
+                if (transient && data.message.Content?.[body]) {
+                  data.message.Content[body][
+                    transient instanceof File ? "_tempFile" : "_tempImage"
+                  ] = transient
+                }
+              }
+              updatePendingMessageToSent(data.chatId, pending.tempId, data.message)
+            } else {
+              updateMessage(data.chatId, data.message)
+            }
+          } else {
+            updateMessage(data.chatId, data.message)
+          }
+        }
+      },
+    )
+
+    return () => {
+      unsubNewMessage()
+      unsubEditedMessage()
+    }
   }, [chatId, updateMessage, updatePendingMessageToSent])
 
   useGSAP(() => {

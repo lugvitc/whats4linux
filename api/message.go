@@ -690,11 +690,17 @@ func (a *Api) EditMessage(chatJID, senderJID, messageID string, newMessageConten
 	parsedHTML := a.processMessageText(newMessage)
 	a.messageStore.ProcessMessageEvent(a.ctx, a.waClient.Store.LIDs, editEventForMessageStore, parsedHTML)
 	updated, err := a.messageStore.GetDecodedMessage(chatJID, messageID)
-	// TODO: implement wa:edited_message
-	runtime.EventsEmit(a.ctx, "wa:chat_list_refresh") // so chat list picks up the new edited msg content
-	runtime.EventsEmit(a.ctx, "wa:new_message", map[string]any{
+	if err != nil {
+		log.Printf("EditMessage: failed to get decoded edited message from message store: %v", err)
+		return nil
+	}
+	runtime.EventsEmit(a.ctx, "wa:edited_message", map[string]any{
 		"chatId":  chatJID,
 		"message": updated,
+		"messageText": newMessageContent,
+		"timestamp":   editEventForMessageStore.Info.Timestamp.Unix(),
+		"sender":      "You",
+		"isFromMe":    true, // You can only edit a message if you're its' sender
 	})
 	return nil
 }
