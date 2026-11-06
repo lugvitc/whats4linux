@@ -35,7 +35,6 @@ export interface AppSettings {
   outgoingSounds: boolean
 
   // General Settings
-  startAtLogin: boolean
   minimizeToTray: boolean
   language: string
   fontSize: string
@@ -63,7 +62,6 @@ const defaultSettings: AppSettings = {
   incomingSounds: true,
   outgoingSounds: true,
 
-  startAtLogin: false,
   minimizeToTray: true,
   language: "English",
   fontSize: "100% (Default)",

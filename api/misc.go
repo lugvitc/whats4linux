@@ -34,6 +34,16 @@ func (a *Api) Reinitialize() error {
 	return a.cw.Initialise(a.waClient)
 }
 
+// GetStartAtLogin reports whether the app is set to start at login.
+func (a *Api) GetStartAtLogin() bool {
+	return misc.AutostartEnabled()
+}
+
+// SetStartAtLogin adds or removes the XDG autostart entry.
+func (a *Api) SetStartAtLogin(enabled bool) error {
+	return misc.SetAutostart(enabled)
+}
+
 func (a *Api) SaveSettings(s map[string]any) error {
 	return store.SaveSettings(s)
 }

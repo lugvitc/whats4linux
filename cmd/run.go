@@ -27,6 +27,9 @@ func run(assets fs.FS) cli.ActionFunc {
 		store.LoadSettings()
 		defer store.CloseSettings()
 
+		hidden := ctx.Bool("hidden")
+		api.SetStartHidden(hidden)
+
 		return wails.Run(&options.App{
 			Title:  misc.APP_NAME,
 			Width:  1024,
@@ -36,7 +39,9 @@ func run(assets fs.FS) cli.ActionFunc {
 				Handler: server.NewAssetFileServer(),
 			},
 			BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
+			StartHidden:      hidden,
 			OnStartup:        api.Startup,
+			OnBeforeClose:    api.BeforeClose,
 			OnShutdown:       api.Shutdown,
 			SingleInstanceLock: &options.SingleInstanceLock{
 				UniqueId:               misc.APP_ID,
