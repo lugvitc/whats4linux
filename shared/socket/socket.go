@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"sync"
+	"sync/atomic"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -26,6 +27,7 @@ type UnixSocket struct {
 	listener net.Listener
 	handler  CommandHandler
 	closed   bool
+	quitting atomic.Bool
 }
 
 func NewUnixSocket(ctx context.Context) (*UnixSocket, error) {
@@ -112,10 +114,13 @@ func (s *UnixSocket) handleConn(conn net.Conn) {
 		case "show":
 			runtime.WindowUnminimise(s.ctx)
 			runtime.Show(s.ctx)
+			s.NotifyWindowVisible(true)
 		case "hide":
 			runtime.Hide(s.ctx)
+			s.NotifyWindowVisible(false)
 		case "quit":
 			log.Println("Quit signal received from systray")
+			s.quitting.Store(true)
 			runtime.Quit(s.ctx)
 		default:
 			if handler != nil {
@@ -134,6 +139,36 @@ func (s *UnixSocket) handleConn(conn net.Conn) {
 	if err := scanner.Err(); err != nil {
 		log.Println("read error:", err)
 	}
+}
+
+// Window visibility messages pushed to the tray so its Open/Hide menu item
+// matches the real window state, however the window was shown or hidden.
+const (
+	WindowStateShown  = "window_state:shown"
+	WindowStateHidden = "window_state:hidden"
+)
+
+// NotifyWindowVisible tells the tray (if connected) whether the window is
+// visible. Best-effort.
+func (s *UnixSocket) NotifyWindowVisible(visible bool) {
+	msg := WindowStateHidden
+	if visible {
+		msg = WindowStateShown
+	}
+	_ = s.SendCommand(msg)
+}
+
+// QuitRequested reports whether the tray asked the app to quit, so the
+// close-to-tray hook must let the shutdown through.
+func (s *UnixSocket) QuitRequested() bool {
+	return s.quitting.Load()
+}
+
+// Connected reports whether a tray client is currently connected.
+func (s *UnixSocket) Connected() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.conn != nil
 }
 
 // SendCommand writes a newline-framed message to the connected client.

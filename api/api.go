@@ -187,6 +187,25 @@ func (a *Api) isShuttingDown() bool {
 func (a *Api) OnSecondInstanceLaunch(secondInstanceData options.SecondInstanceData) {
 	runtime.WindowUnminimise(a.ctx)
 	runtime.Show(a.ctx)
+	if a.us != nil {
+		a.us.NotifyWindowVisible(true)
+	}
+}
+
+// BeforeClose hides the window instead of quitting when "Minimize to system
+// tray" is enabled and a tray is connected to bring it back. Without a tray
+// the window would become unreachable, so the app quits normally.
+func (a *Api) BeforeClose(ctx context.Context) bool {
+	minimize := true
+	if v, ok := store.GetSettings()["minimizeToTray"].(bool); ok {
+		minimize = v
+	}
+	if !minimize || a.isShuttingDown() || a.us == nil || a.us.QuitRequested() || !a.us.Connected() {
+		return false
+	}
+	runtime.WindowHide(ctx)
+	a.us.NotifyWindowVisible(false)
+	return true
 }
 
 func (a *Api) Shutdown(ctx context.Context) {
