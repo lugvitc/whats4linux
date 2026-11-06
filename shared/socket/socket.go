@@ -28,6 +28,9 @@ type UnixSocket struct {
 	handler  CommandHandler
 	closed   bool
 	quitting atomic.Bool
+	// hidden mirrors the last reported window visibility so a tray that
+	// connects later (or reconnects) starts with the right menu item.
+	hidden atomic.Bool
 }
 
 func NewUnixSocket(ctx context.Context) (*UnixSocket, error) {
@@ -94,6 +97,11 @@ func (s *UnixSocket) handleConn(conn net.Conn) {
 	handler := s.handler
 	s.mu.Unlock()
 
+	// Sync the tray's Open/Hide item with the current window state.
+	if err := s.SendCommand(windowStateMessage(!s.hidden.Load())); err != nil {
+		log.Println("socket write error:", err)
+	}
+
 	defer func() {
 		s.mu.Lock()
 		if s.conn == conn {
@@ -151,11 +159,15 @@ const (
 // NotifyWindowVisible tells the tray (if connected) whether the window is
 // visible. Best-effort.
 func (s *UnixSocket) NotifyWindowVisible(visible bool) {
-	msg := WindowStateHidden
+	s.hidden.Store(!visible)
+	_ = s.SendCommand(windowStateMessage(visible))
+}
+
+func windowStateMessage(visible bool) string {
 	if visible {
-		msg = WindowStateShown
+		return WindowStateShown
 	}
-	_ = s.SendCommand(msg)
+	return WindowStateHidden
 }
 
 // QuitRequested reports whether the tray asked the app to quit, so the

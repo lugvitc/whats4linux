@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/gen2brain/beeep"
 
@@ -53,6 +54,7 @@ type Api struct {
 	backgroundTasks     sync.WaitGroup
 	shuttingDown        bool
 	windowFocused       atomic.Bool
+	startHidden         bool
 	groupRepairInFlight atomic.Bool
 	appStateResync      atomic.Bool
 }
@@ -162,6 +164,34 @@ func (a *Api) notifyIncoming(v *events.Message, parsedHTML string) {
 // NewApi creates a new Api application struct
 func New() *Api {
 	return &Api{}
+}
+
+// SetStartHidden makes the app start minimized to the tray (--hidden). Must be
+// called before wails.Run.
+func (a *Api) SetStartHidden(hidden bool) {
+	a.startHidden = hidden
+}
+
+// trayWaitTimeout is how long a hidden start waits for the tray to connect
+// before showing the window, so the app is never running with no way to
+// reach it.
+const trayWaitTimeout = 10 * time.Second
+
+func (a *Api) showIfNoTray(ctx context.Context, us *socket.UnixSocket) {
+	deadline := time.Now().Add(trayWaitTimeout)
+	for time.Now().Before(deadline) {
+		if us.Connected() {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(200 * time.Millisecond):
+		}
+	}
+	log.Println("no system tray connected, showing window")
+	runtime.WindowShow(ctx)
+	us.NotifyWindowVisible(true)
 }
 
 func (a *Api) startBackground(task func()) bool {
@@ -302,6 +332,11 @@ func (a *Api) Startup(ctx context.Context) {
 		return
 	}
 	a.us.SetCommandHandler(a.trayCommandHandler)
+	if a.startHidden {
+		// The tray learns the window state when it connects.
+		a.us.NotifyWindowVisible(false)
+		go a.showIfNoTray(ctx, a.us)
+	}
 	socketServer := a.us
 	go func() {
 		err := socketServer.ListenAndServe()
