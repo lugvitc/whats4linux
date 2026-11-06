@@ -116,10 +116,17 @@ Whats4Linux is built specifically for Linux:
 ```bash
 git clone https://github.com/lugvitc/whats4linux
 cd whats4linux
-wails build
+./scripts/build.sh
 ```
 
-This will produce a binary in the `build/bin/` directory.
+This builds the app and its system tray helper (`whats4linux_tray`) into `build/bin/`. The tray needs the `ayatana-appindicator3` development package (e.g. `libayatana-appindicator-gtk3-devel` on Fedora, `libayatana-appindicator3-dev` on Debian/Ubuntu).
+
+To install it for your user, with a launcher entry and icon:
+
+```bash
+./scripts/install.sh              # binaries to ~/.local/bin, launcher to ~/.local/share/applications
+./scripts/install.sh --uninstall  # remove them again
+```
 
 ## 🧪 Development Notes
 
