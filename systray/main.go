@@ -19,6 +19,11 @@ var mu sync.Mutex
 // received before the menu exists aren't lost.
 var notifStateCh = make(chan bool, 8)
 
+// windowVisibleCh carries window visibility pushed by the main app, which is
+// authoritative: the window can be hidden/shown without going through the
+// tray menu (closing it, launching a second instance).
+var windowVisibleCh = make(chan bool, 8)
+
 func connectSocket() error {
 	c, err := net.Dial("unix", socket.UDSPath)
 	if err != nil {
@@ -43,6 +48,10 @@ func readCommands() error {
 				pushNotifState(true)
 			case "notifications_state:off":
 				pushNotifState(false)
+			case socket.WindowStateShown:
+				pushLatest(windowVisibleCh, true)
+			case socket.WindowStateHidden:
+				pushLatest(windowVisibleCh, false)
 			case "":
 				// ignore empty keep-alive lines
 			default:
@@ -67,13 +76,17 @@ func readCommands() error {
 // socket read loop: if the buffer is full (menu not ready yet), the oldest
 // state is dropped so the latest always wins.
 func pushNotifState(enabled bool) {
+	pushLatest(notifStateCh, enabled)
+}
+
+func pushLatest(ch chan bool, v bool) {
 	for {
 		select {
-		case notifStateCh <- enabled:
+		case ch <- v:
 			return
 		default:
 			select {
-			case <-notifStateCh:
+			case <-ch:
 			default:
 			}
 		}
@@ -126,17 +139,26 @@ func main() {
 		go func() {
 			for {
 				<-mHide.ClickedCh
-				mShow.Show()
-				mHide.Hide()
 				sendCommand("hide")
 			}
 		}()
 		go func() {
 			for {
 				<-mShow.ClickedCh
-				mHide.Show()
-				mShow.Hide()
 				sendCommand("show")
+			}
+		}()
+		// The app confirms every visibility change, so the menu only
+		// follows its reports instead of guessing on click.
+		go func() {
+			for visible := range windowVisibleCh {
+				if visible {
+					mHide.Show()
+					mShow.Hide()
+				} else {
+					mShow.Show()
+					mHide.Hide()
+				}
 			}
 		}()
 		// Checkbox mirroring the app's global notification switch. The app is
