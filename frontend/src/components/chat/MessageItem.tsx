@@ -35,6 +35,7 @@ interface MessageItemProps {
   pinnedIds?: Set<string>
   sentMediaCache: React.MutableRefObject<Map<string, string>>
   onReply?: (message: store.DecodedMessage) => void
+  onEdit?: (message: store.DecodedMessage) => void
   onQuotedClick?: (messageId: string) => void
   highlightedMessageId?: string | null
 }
@@ -118,6 +119,7 @@ export function MessageItem({
   pinnedIds,
   sentMediaCache,
   onReply,
+  onEdit,
   onQuotedClick,
   highlightedMessageId,
 }: MessageItemProps) {
@@ -195,6 +197,8 @@ export function MessageItem({
       console.error("Failed to toggle message pin:", err),
     )
   }
+
+  const handleEdit = () => onEdit?.(message)
 
   // Fetch group member name + color from the cached store (one RPC per sender,
   // then synchronous) so scrolling a group chat doesn't fire an RPC per row.
@@ -527,6 +531,7 @@ export function MessageItem({
             onReply={handleReply}
             onCopy={handleCopy}
             onReact={handleReact}
+            onEdit={handleEdit}
           />
 
           {!isFromMe && chatId.endsWith("@g.us") && firstInGroup && (

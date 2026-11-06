@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useLayoutEffect } from "react"
 import { createPortal } from "react-dom"
-import { ReplyIcon, CopyIcon, ReactIcon, MenuArrowIcon } from "../../assets/svgs/message_menu_icons"
+import { ReplyIcon, CopyIcon, ReactIcon, MenuArrowIcon, EditIcon } from "../../assets/svgs/message_menu_icons"
 
 interface MessageMenuProps {
   messageId: string
@@ -10,6 +10,7 @@ interface MessageMenuProps {
   onCopy?: () => void
   onReact?: () => void
   onPin?: () => void
+  onEdit?: () => void
 }
 
 // Same pin glyph as the chat list, sized for menu rows.
@@ -27,6 +28,7 @@ export function MessageMenu({
   onCopy,
   onReact,
   onPin,
+  onEdit
 }: MessageMenuProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isClosing, setIsClosing] = useState(false)
@@ -145,19 +147,19 @@ export function MessageMenu({
             </button>
 
             <button
-              onClick={() => handleMenuItemClick(onCopy)}
-              className="rounded-xl w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-gray-800 dark:text-gray-200 text-sm"
-            >
-              <CopyIcon />
-              <span>Copy</span>
-            </button>
-
-            <button
               onClick={() => handleMenuItemClick(onReact)}
               className="rounded-xl w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-gray-800 dark:text-gray-200 text-sm"
             >
               <ReactIcon />
               <span>React</span>
+            </button>
+
+            <button
+              onClick={() => handleMenuItemClick(onEdit)}
+              className="rounded-xl w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-gray-800 dark:text-gray-200 text-sm"
+            >
+              <EditIcon />
+              <span>Edit</span>
             </button>
 
             {onPin && (
@@ -169,6 +171,15 @@ export function MessageMenu({
                 <span>{isPinned ? "Unpin" : "Pin"}</span>
               </button>
             )}
+
+            <button
+              onClick={() => handleMenuItemClick(onCopy)}
+              className="rounded-xl w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-tertiary transition-colors text-gray-800 dark:text-gray-200 text-sm"
+            >
+              <CopyIcon />
+              <span>Copy</span>
+            </button>
+
           </div>,
           document.body,
         )}

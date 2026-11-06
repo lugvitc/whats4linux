@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react"
 import {
   SendMessage,
+  EditMessage,
   FetchMessagesPaged,
   GetPinnedMessages,
   SendChatPresence,
@@ -72,6 +73,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [selectedFileType, setSelectedFileType] = useState<string>("")
   const [replyingTo, setReplyingTo] = useState<store.DecodedMessage | null>(null)
+  const [editingMessage, setEditingMessage] = useState<store.DecodedMessage | null>(null)
   const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null)
 
   const [mentionableContacts, setMentionableContacts] = useState<any[]>([])
@@ -82,6 +84,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
   const [isReady, setIsReady] = useState(false)
   const [isAtBottom, setIsAtBottom] = useState(true)
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
+  const visibleHighlightedMessageId = editingMessage?.Info.ID ?? highlightedMessageId
   const [firstItemIndex, setFirstItemIndex] = useState(START_INDEX)
 
   const messageListRef = useRef<MessageListHandle>(null)
@@ -394,13 +397,13 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
     if (!isComposingRef.current) {
       isComposingRef.current = true
       setTypingIndicator(chatId, true)
-      SendChatPresence(chatId, "composing", "").catch(() => {})
+      SendChatPresence(chatId, "composing", "").catch(() => { })
     }
 
     if (typingTimeout) clearTimeout(typingTimeout)
     const timeout = setTimeout(() => {
       isComposingRef.current = false
-      SendChatPresence(chatId, "paused", "").catch(() => {})
+      SendChatPresence(chatId, "paused", "").catch(() => { })
       setTypingIndicator(chatId, false)
     }, 1500)
     setTypingTimeout(timeout)
@@ -408,7 +411,19 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
 
   const handleSendMessage = async () => {
     if (!inputText.trim() && !pastedImage && !selectedFile) return
-
+    if (editingMessage) {
+      return EditMessage(
+        chatId,
+        editingMessage.Info.Sender,
+        editingMessage.Info.ID,
+        inputText
+      )
+        .then(() => {
+          setEditingMessage(null);
+          setInputText("")
+        })
+        .catch(err => console.error("Failed to edit:", err))
+    }
     const textToSend = inputText
     const imageToSend = pastedImage
     const fileToSend = selectedFile
@@ -615,6 +630,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
     setHasMore(true)
     setIsLoadingMore(false)
     setIsAtBottom(true)
+    setEditingMessage(null);
     setActiveChatId(chatId)
     const initialRequest = loadInitialMessages(generation)
     initialLoadPromiseRef.current = initialRequest
@@ -636,7 +652,7 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
   useEffect(() => {
     // New messages from events still use the old Message format for real-time updates
     // They will be compatible due to the Info and Content structure
-    const unsub = EventsOn(
+    const unsubNewMessage = EventsOn(
       "wa:new_message",
       (data: { chatId: string; message: any; clientTempId?: string }) => {
         if (data?.chatId === chatId && data.message?.Info?.ID) {
@@ -673,7 +689,47 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
       },
     )
 
-    return () => unsub()
+    const unsubEditedMessage = EventsOn(
+      "wa:edited_message",
+      (data: { chatId: string; message: any; clientTempId?: string }) => {
+        if (data?.chatId === chatId && data.message?.Info?.ID) {
+          // Use getState to avoid depending on messages array and causing re-subscriptions
+          const currentMessages = useMessageStore.getState().messages[chatId] || []
+          const hasPendingMessage = currentMessages.some((m: any) => m.isPending)
+
+          if (hasPendingMessage && data.message.Info?.IsFromMe && data.clientTempId) {
+            const pendingMessages = currentMessages.filter((m: any) => m.isPending)
+            const pending = pendingMessages.find((m: any) => m.tempId === data.clientTempId)
+            if (pending) {
+              for (const body of [
+                "imageMessage",
+                "videoMessage",
+                "audioMessage",
+                "stickerMessage",
+              ]) {
+                const transient =
+                  pending.Content?.[body]?._tempImage || pending.Content?.[body]?._tempFile
+                if (transient && data.message.Content?.[body]) {
+                  data.message.Content[body][
+                    transient instanceof File ? "_tempFile" : "_tempImage"
+                  ] = transient
+                }
+              }
+              updatePendingMessageToSent(data.chatId, pending.tempId, data.message)
+            } else {
+              updateMessage(data.chatId, data.message)
+            }
+          } else {
+            updateMessage(data.chatId, data.message)
+          }
+        }
+      },
+    )
+
+    return () => {
+      unsubNewMessage()
+      unsubEditedMessage()
+    }
   }, [chatId, updateMessage, updatePendingMessageToSent])
 
   useGSAP(() => {
@@ -778,13 +834,17 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
               firstItemIndex={firstItemIndex}
               sentMediaCache={sentMediaCache}
               onReply={setReplyingTo}
+              onEdit={message => {
+                setEditingMessage(message)
+                setInputText(message.Content?.conversation || message.Content?.extendedTextMessage?.text || "") // TODO: this returns raw html, not markdown/formatted text.
+              }}
               onQuotedClick={handleQuotedClick}
               onLoadMore={() => void loadMoreMessages()}
               onAtBottomChange={handleAtBottomChange}
               pinnedIds={pinnedIds}
               isLoading={isLoadingMore}
               hasMore={isReady && hasMore}
-              highlightedMessageId={highlightedMessageId}
+              highlightedMessageId={visibleHighlightedMessageId}
             />
           </div>
         </div>

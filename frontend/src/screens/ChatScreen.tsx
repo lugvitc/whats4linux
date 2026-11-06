@@ -733,6 +733,48 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
       },
     )
 
+    // Listen for edited messages - update only the specific chat
+    const unsubEditedMessage = EventsOn(
+      "wa:edited_message",
+      (data: {
+        chatId: string
+        messageText: string
+        timestamp: number
+        sender: string
+        reaction?: string
+        isFromMe?: boolean
+      }) => {
+        // Mark an incoming message unread unless it belongs to the chat that's
+        // currently open. Read state via getState() to avoid a stale closure.
+        if (!data.isFromMe && useChatStore.getState().selectedChatId !== data.chatId) {
+          useChatStore.getState().incrementUnreadCount(data.chatId)
+        }
+
+        if (!initialFetchDoneRef.current) {
+          // If we haven't done initial fetch, do a full fetch
+          setTimeout(fetchChats, 500)
+          return
+        }
+
+        // Check if we already have this chat in our list
+        const existingChat = getChat(data.chatId)
+        if (existingChat) {
+          let previewText = data.messageText
+          let senderForUpdate = data.sender
+          if (data.reaction) {
+            previewText = `${data.sender} reacted ${data.reaction} to: "${previewText}"`
+            senderForUpdate = ""
+          }
+
+          // Update only this specific chat - no full re-fetch needed!
+          updateChatLastMessage(data.chatId, previewText, data.timestamp, senderForUpdate)
+        } else {
+          // New chat we don't have - need to fetch to get avatar/name
+          setTimeout(fetchChats, 500)
+        }
+      },
+    )
+
     const unsubPictureUpdate = EventsOn("wa:picture_update", async (jid: string) => {
       if (!jid) return
 
@@ -761,6 +803,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
       mountedRef.current = false
       clearTimeout(timeout)
       unsubNewMessage()
+      unsubEditedMessage()
       unsubPictureUpdate()
       unsubRefresh()
     }

@@ -642,6 +642,69 @@ func (a *Api) SetMessagePinned(chatJID, senderJID, messageID string, fromMe, pin
 	return nil
 }
 
+func (a *Api) EditMessage(chatJID, senderJID, messageID string, newMessageContent string) error {
+	if a.waClient.Store.ID == nil {
+		return fmt.Errorf("not logged in")
+	}
+	chat, err := types.ParseJID(chatJID)
+	if err != nil {
+		return err
+	}
+
+	key := &waCommon.MessageKey{
+		RemoteJID: proto.String(chatJID),
+		FromMe:    proto.Bool(true), // You can only edit a message if you're its' sender
+		ID:        proto.String(messageID),
+	}
+	if chat.Server == types.GroupServer && senderJID != "" {
+		key.Participant = proto.String(senderJID)
+	}
+
+	newMessage := &waE2E.Message{
+		Conversation: proto.String(newMessageContent),
+	}
+
+	editEventForMessageStore := &events.Message{
+		Info: types.MessageInfo{
+			ID:        types.MessageID(messageID),
+			Timestamp: time.Now(),
+			MessageSource: types.MessageSource{
+				Chat:     chat,
+				Sender:   *a.waClient.Store.ID,
+				IsFromMe: true,
+			},
+		},
+		Message: &waE2E.Message{
+			ProtocolMessage: &waE2E.ProtocolMessage{
+				Key:           key,
+				Type:          waE2E.ProtocolMessage_MESSAGE_EDIT.Enum(),
+				EditedMessage: newMessage,
+			},
+		},
+	}
+
+	if _, err := a.waClient.SendMessage(a.ctx, chat, a.waClient.BuildEdit(chat, types.MessageID(messageID), newMessage)); err != nil {
+		return err
+	}
+
+	parsedHTML := a.processMessageText(newMessage)
+	a.messageStore.ProcessMessageEvent(a.ctx, a.waClient.Store.LIDs, editEventForMessageStore, parsedHTML)
+	updated, err := a.messageStore.GetDecodedMessage(chatJID, messageID)
+	if err != nil {
+		log.Printf("EditMessage: failed to get decoded edited message from message store: %v", err)
+		return nil
+	}
+	runtime.EventsEmit(a.ctx, "wa:edited_message", map[string]any{
+		"chatId":  chatJID,
+		"message": updated,
+		"messageText": newMessageContent,
+		"timestamp":   editEventForMessageStore.Info.Timestamp.Unix(),
+		"sender":      "You",
+		"isFromMe":    true, // You can only edit a message if you're its' sender
+	})
+	return nil
+}
+
 // sendAndStoreLocal sends a prebuilt message and records it locally so the
 // UI shows it immediately, mirroring SendMessage's echo path.
 func (a *Api) sendAndStoreLocal(chat types.JID, msgContent *waE2E.Message, preview string) (string, error) {

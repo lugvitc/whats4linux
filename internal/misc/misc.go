@@ -7,7 +7,7 @@ import (
 )
 
 const APP_NAME = "whats4linux"
-const APP_ID = "net.lugvitc.whats4linux"
+const APP_ID = "tech.lugvitc.whats4linux"
 
 var ConfigDir = defaultConfigDir()
 
