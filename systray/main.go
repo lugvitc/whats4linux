@@ -122,8 +122,7 @@ func main() {
 	}()
 	systray.Run(func() {
 		systray.SetTemplateIcon(icon, icon)
-		systray.SetTitle("Whats4Linux")
-		systray.SetTooltip("Lantern")
+		systray.SetTooltip("Whats4Linux")
 		mQuitOrig := systray.AddMenuItem("Quit", "Quit the whole app")
 		go func() {
 			<-mQuitOrig.ClickedCh
