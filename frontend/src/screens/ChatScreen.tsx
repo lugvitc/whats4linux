@@ -733,6 +733,24 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
       },
     )
 
+    // Desktop notification clicks identify the originating chat. Bring that
+    // chat into view even if the notification was clicked while minimized.
+    const unsubOpenChat = EventsOn("wa:open_chat", async (chatId: string) => {
+      if (!chatId) return
+
+      setView("chats")
+      setShowArchived(false)
+      setSelectedCommunity(null)
+      setCommunityReturn(null)
+
+      let chat = useChatStore.getState().getChat(chatId)
+      if (!chat) {
+        await fetchChats()
+        chat = useChatStore.getState().getChat(chatId)
+      }
+      if (chat) handleChatSelect(chat)
+    })
+
     const unsubPictureUpdate = EventsOn("wa:picture_update", async (jid: string) => {
       if (!jid) return
 
@@ -761,6 +779,7 @@ export function ChatListScreen({ onOpenSettings }: ChatListScreenProps) {
       mountedRef.current = false
       clearTimeout(timeout)
       unsubNewMessage()
+      unsubOpenChat()
       unsubPictureUpdate()
       unsubRefresh()
     }
