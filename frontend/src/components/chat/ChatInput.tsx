@@ -285,6 +285,13 @@ export function ChatInput({
     }
   }, [replyingTo, getContactName, getContactColor])
 
+  // Keep typing focused after attaching a message as a reply. The animation
+  // frame lets React commit the reply preview before focusing the textarea.
+  useEffect(() => {
+    if (!replyingTo) return
+    requestAnimationFrame(() => textareaRef.current?.focus())
+  }, [replyingTo, textareaRef])
+
   useEffect(() => {
     const loadAvatars = async () => {
       const contactsToLoad = mentionSuggestions.filter(
