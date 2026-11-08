@@ -454,6 +454,13 @@ export function MessageItem({
                 !isFromMe && !isSticker,
             },
           )}
+          onDoubleClick={event => {
+            // Double-clicking the message bubble replies to it. Keep buttons,
+            // links, and other controls from triggering an accidental reply.
+            const target = event.target as HTMLElement
+            if (target.closest("button, a, input, textarea, [role='button']")) return
+            handleReply()
+          }}
         >
           {/* Hover reaction trigger just outside the bubble (WhatsApp-style). */}
           <button
