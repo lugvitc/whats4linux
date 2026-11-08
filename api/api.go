@@ -55,6 +55,7 @@ type Api struct {
 	windowFocused       atomic.Bool
 	groupRepairInFlight atomic.Bool
 	appStateResync      atomic.Bool
+	notificationClicker notificationClicker
 }
 
 // repairGroupNames heals whats4linux_groups rows that are missing or were
@@ -154,7 +155,18 @@ func (a *Api) notifyIncoming(v *events.Message, parsedHTML string) {
 	if body == "" {
 		body = "Sent you a message"
 	}
-	if err := beeep.Notify(title, body, ""); err != nil {
+	var err error
+	if a.notificationClicker != nil {
+		err = a.notificationClicker.Notify(title, body, v.Info.Chat.String())
+		if err != nil {
+			// Keep notifications working if the desktop notification server
+			// rejects action-bearing notifications.
+			err = beeep.Notify(title, body, "")
+		}
+	} else {
+		err = beeep.Notify(title, body, "")
+	}
+	if err != nil {
 		log.Println("notify failed:", err)
 	}
 }
@@ -225,7 +237,6 @@ func (a *Api) Shutdown(ctx context.Context) {
 	a.eventMu.Lock()
 	a.eventMu.Unlock()
 	a.backgroundTasks.Wait()
-
 	if err := a.closeResources(); err != nil {
 		log.Println("shutdown cleanup failed:", err)
 	}
@@ -233,6 +244,10 @@ func (a *Api) Shutdown(ctx context.Context) {
 
 func (a *Api) closeResources() error {
 	var closeErr error
+	if a.notificationClicker != nil {
+		closeErr = errors.Join(closeErr, a.notificationClicker.Close())
+		a.notificationClicker = nil
+	}
 	if a.us != nil {
 		_ = a.us.SendCommand("shutdown")
 		closeErr = errors.Join(closeErr, a.us.Close())
@@ -276,6 +291,11 @@ func (a *Api) Startup(ctx context.Context) {
 	// Set the context before anything that may call back into the Api (the
 	// systray command handler needs it for EventsEmit).
 	a.ctx = ctx
+	a.notificationClicker = newNotificationClicker(func(chatID string) {
+		runtime.WindowUnminimise(a.ctx)
+		runtime.Show(a.ctx)
+		runtime.EventsEmit(a.ctx, "wa:open_chat", chatID)
+	})
 	var err error
 	a.us, err = socket.NewUnixSocket(ctx)
 	if err != nil {

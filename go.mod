@@ -3,8 +3,10 @@ module github.com/lugvitc/whats4linux
 go 1.26.5
 
 require (
+	github.com/esiqveland/notify v0.13.3
 	github.com/gen2brain/beeep v0.11.2
 	github.com/gen2brain/malgo v0.11.26
+	github.com/godbus/dbus/v5 v5.2.2
 	github.com/joho/godotenv v1.5.1
 	github.com/mattn/go-sqlite3 v1.14.48
 	github.com/nyaruka/phonenumbers v1.8.0
@@ -26,9 +28,7 @@ require (
 	github.com/coder/websocket v1.8.15 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.7 // indirect
 	github.com/elliotchance/orderedmap/v3 v3.1.0 // indirect
-	github.com/esiqveland/notify v0.13.3 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
-	github.com/godbus/dbus/v5 v5.2.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/hajimehoshi/go-mp3 v0.3.4 // indirect
