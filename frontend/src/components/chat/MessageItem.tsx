@@ -423,11 +423,13 @@ export function MessageItem({
               highlightedMessageId === message.Info.ID,
           },
         )}
-        onDoubleClick={handleReply}
       >
         {/* Click zone left of the sent message */}
         {isFromMe && (
-          <div className="w-12 shrink-0 cursor-default" onDoubleClick={handleReply}/>
+          <div className="flex-1 w-12 shrink-0 cursor-default" onDoubleClick={(e) => {
+                e.stopPropagation()
+                handleReply()
+              }}/>
         )}
         {/* Sender avatar column (group chats, received): avatar on the first
             message of a run, an equally wide spacer on the rest. */}
@@ -591,7 +593,7 @@ export function MessageItem({
         {
           !isFromMe && (
             <div
-              className="w-12 shrink-0 cursor-default"
+              className="flex-1 w-12 shrink-0 cursor-default"
               onDoubleClick={(e) => {
                 e.stopPropagation()
                 handleReply()
