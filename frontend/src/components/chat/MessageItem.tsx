@@ -423,7 +423,7 @@ export function MessageItem({
               highlightedMessageId === message.Info.ID,
           },
         )}
-        // onDoubleClick={handleReply}
+        onDoubleClick={handleReply}
       >
         {/* Click zone left of the sent message */}
         {isFromMe && (
@@ -587,10 +587,16 @@ export function MessageItem({
           )}
         </div>
 
-        {/* Click zone on right for received message*/}
+        {/* Click zone on right for received message */}
         {
           !isFromMe && (
-            <div className="w-12 shrink-0 cursor-default" onDoubleClick={handleReply} />
+            <div
+              className="w-12 shrink-0 cursor-default"
+              onDoubleClick={(e) => {
+                e.stopPropagation()
+                handleReply()
+              }}
+            />
           )
         }
       </div>
