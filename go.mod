@@ -10,7 +10,7 @@ require (
 	github.com/nyaruka/phonenumbers v1.8.0
 	github.com/purpshell/meowcaller v0.0.0
 	github.com/urfave/cli v1.22.17
-	github.com/wailsapp/wails/v2 v2.16.0
+	github.com/wailsapp/wails/v2 v2.15.0
 	go.mau.fi/util v0.9.12-0.20260717235539-f9ffa7eca58d
 	go.mau.fi/whatsmeow v0.0.0-20260722203353-e9a033b24933
 	golang.org/x/image v0.41.0
