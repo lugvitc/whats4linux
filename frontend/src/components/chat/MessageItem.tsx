@@ -424,6 +424,13 @@ export function MessageItem({
           },
         )}
       >
+        {/* Click zone left of the sent message */}
+        {isFromMe && (
+          <div className="flex-1 w-12 shrink-0 cursor-default" onDoubleClick={(e) => {
+                e.stopPropagation()
+                handleReply()
+              }}/>
+        )}
         {/* Sender avatar column (group chats, received): avatar on the first
             message of a run, an equally wide spacer on the rest. */}
         {!isFromMe &&
@@ -581,6 +588,19 @@ export function MessageItem({
             />
           )}
         </div>
+
+        {/* Click zone on right for received message */}
+        {
+          !isFromMe && (
+            <div
+              className="flex-1 w-12 shrink-0 cursor-default"
+              onDoubleClick={(e) => {
+                e.stopPropagation()
+                handleReply()
+              }}
+            />
+          )
+        }
       </div>
     </>
   )

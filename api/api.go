@@ -394,9 +394,13 @@ func (a *Api) Login() error {
 		}
 	} else {
 		// Already logged in, connect before announcing readiness.
-		err := client.Connect()
-		if err != nil {
-			return err
+
+		// Only call Connect when there no existing connection active
+		if !client.IsConnected(){
+			err := client.Connect()
+			if err != nil {
+				return err
+			}
 		}
 		if a.isShuttingDown() {
 			return context.Canceled
