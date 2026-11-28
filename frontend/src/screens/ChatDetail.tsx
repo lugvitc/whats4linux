@@ -260,7 +260,11 @@ export function ChatDetail({ chatId, chatName, chatAvatar, onBack }: ChatDetailP
         }
         setMessages(chatId, merged)
         preloadImages(visibleImageIDs(merged))
-        const more = loadedMsgs.length >= PAGE_SIZE
+        // A short initial local page doesn't mean the phone has no older
+        // history. Keep pagination enabled as long as we have an anchor; the
+        // backend will issue an on-demand history-sync request when SQLite is
+        // exhausted.
+        const more = loadedMsgs.length > 0
         hasMoreRef.current = more
         setHasMore(more)
 

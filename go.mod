@@ -3,18 +3,18 @@ module github.com/lugvitc/whats4linux
 go 1.26.5
 
 require (
-	github.com/gen2brain/beeep v0.11.2
-	github.com/gen2brain/malgo v0.11.26
+	github.com/gen2brain/beeep v0.12.0
+	github.com/gen2brain/malgo v0.11.28
 	github.com/joho/godotenv v1.5.1
-	github.com/mattn/go-sqlite3 v1.14.48
-	github.com/nyaruka/phonenumbers v1.8.0
+	github.com/mattn/go-sqlite3 v1.14.53
+	github.com/nyaruka/phonenumbers v1.8.1
 	github.com/purpshell/meowcaller v0.0.0
 	github.com/urfave/cli v1.22.17
-	github.com/wailsapp/wails/v2 v2.16.0
-	go.mau.fi/util v0.9.12-0.20260717235539-f9ffa7eca58d
-	go.mau.fi/whatsmeow v0.0.0-20260722203353-e9a033b24933
-	golang.org/x/image v0.41.0
-	google.golang.org/protobuf v1.36.11
+	github.com/wailsapp/wails/v2 v2.15.0
+	go.mau.fi/util v0.11.1
+	go.mau.fi/whatsmeow v0.0.0-20261127144454-3fe87b230cba
+	golang.org/x/image v0.48.0
+	google.golang.org/protobuf v1.36.12
 )
 
 require (
@@ -25,32 +25,31 @@ require (
 	github.com/bep/debounce v1.2.1 // indirect
 	github.com/coder/websocket v1.8.15 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.7 // indirect
-	github.com/elliotchance/orderedmap/v3 v3.1.0 // indirect
-	github.com/esiqveland/notify v0.13.3 // indirect
+	github.com/ebitengine/purego v0.11.3 // indirect
+	github.com/elliotchance/orderedmap/v3 v3.2.0 // indirect
+	github.com/esiqveland/notify v0.14.0 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
-	github.com/godbus/dbus/v5 v5.2.2 // indirect
+	github.com/godbus/dbus/v5 v5.2.4 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/hajimehoshi/go-mp3 v0.3.4 // indirect
-	github.com/jackmordaunt/icns/v3 v3.0.1 // indirect
 	github.com/jchv/go-winloader v0.0.0-20250406163304-c1995be93bd1 // indirect
-	github.com/labstack/echo/v4 v4.15.4 // indirect
+	github.com/labstack/echo/v4 v4.16.6 // indirect
 	github.com/labstack/gommon v0.5.0 // indirect
 	github.com/leaanthony/go-ansi-parser v1.6.1 // indirect
 	github.com/leaanthony/gosod v1.0.4 // indirect
 	github.com/leaanthony/slicer v1.6.0 // indirect
 	github.com/leaanthony/u v1.1.1 // indirect
-	github.com/mattn/go-colorable v0.1.15 // indirect
+	github.com/mattn/go-colorable v0.1.16 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
-	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646 // indirect
-	github.com/petermattis/goid v0.0.0-20260713124913-97594f28f5ca // indirect
-	github.com/pion/datachannel v1.6.0 // indirect
-	github.com/pion/dtls/v3 v3.1.2 // indirect
+	github.com/petermattis/goid v0.0.0-20261125140513-578663ba5663 // indirect
+	github.com/pion/datachannel v1.6.4 // indirect
+	github.com/pion/dtls/v3 v3.1.16 // indirect
 	github.com/pion/logging v0.2.4 // indirect
 	github.com/pion/opus v0.1.0 // indirect
 	github.com/pion/randutil v0.1.0 // indirect
-	github.com/pion/sctp v1.9.4 // indirect
-	github.com/pion/transport/v4 v4.0.1 // indirect
+	github.com/pion/sctp v1.12.2 // indirect
+	github.com/pion/transport/v5 v5.1.6 // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
@@ -63,16 +62,16 @@ require (
 	github.com/tkrajina/go-reflector v0.5.8 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
-	github.com/vektah/gqlparser/v2 v2.5.35 // indirect
+	github.com/vektah/gqlparser/v2 v2.5.64 // indirect
 	github.com/wailsapp/go-webview2 v1.0.23 // indirect
 	github.com/wailsapp/mimetype v1.4.1 // indirect
-	go.mau.fi/libsignal v0.2.2 // indirect
-	golang.org/x/crypto v0.57.0 // indirect
-	golang.org/x/exp v0.0.0-20260709172345-9ea1abe57597 // indirect
-	golang.org/x/net v0.59.0 // indirect
-	golang.org/x/sync v0.23.0 // indirect
-	golang.org/x/sys v0.48.0 // indirect
-	golang.org/x/text v0.42.0 // indirect
+	go.mau.fi/libsignal v0.2.3 // indirect
+	golang.org/x/crypto v0.59.0 // indirect
+	golang.org/x/exp v0.0.0-20261124000051-d6646c509b6d // indirect
+	golang.org/x/net v0.63.0 // indirect
+	golang.org/x/sync v0.25.0 // indirect
+	golang.org/x/sys v0.50.0 // indirect
+	golang.org/x/text v0.44.0 // indirect
 )
 
 // replace github.com/wailsapp/wails/v2 v2.11.0 => /home/celestix/go/pkg/mod
