@@ -92,6 +92,23 @@ func (a *Api) FetchMessagesPaged(jid string, limit int, beforeTimestamp int64, b
 	if err != nil {
 		return nil, err
 	}
+	// The old implementation stopped permanently at the end of SQLite. When
+	// paging older history, ask the phone for the missing part of the page and
+	// query the same cursor again after its HistorySync payload is stored.
+	if beforeTimestamp != 0 && beforeMessageID != "" && len(messages) < limit && a.waClient != nil && a.waClient.IsConnected() {
+		anchorID := beforeMessageID
+		if len(messages) > 0 {
+			anchorID = messages[0].Info.ID
+		}
+		if requestErr := a.requestHistory(jid, anchorID, limit-len(messages)); requestErr != nil {
+			log.Printf("On-demand history sync failed for %s: %v", jid, requestErr)
+		} else {
+			messages, err = a.messageStore.GetDecodedMessagesPaged(jid, beforeTimestamp, beforeMessageID, limit)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
 	return messages, nil
 }
 

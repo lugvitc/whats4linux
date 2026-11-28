@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/gen2brain/beeep"
 
@@ -55,6 +56,8 @@ type Api struct {
 	windowFocused       atomic.Bool
 	groupRepairInFlight atomic.Bool
 	appStateResync      atomic.Bool
+	historyMu           sync.Mutex
+	historyWaiters      map[string][]chan struct{}
 }
 
 // repairGroupNames heals whats4linux_groups rows that are missing or were
@@ -161,7 +164,7 @@ func (a *Api) notifyIncoming(v *events.Message, parsedHTML string) {
 
 // NewApi creates a new Api application struct
 func New() *Api {
-	return &Api{}
+	return &Api{historyWaiters: make(map[string][]chan struct{})}
 }
 
 func (a *Api) startBackground(task func()) bool {
@@ -640,12 +643,16 @@ func (a *Api) mainEventHandler(evt any) {
 func (a *Api) processHistorySync(v *events.HistorySync) {
 	conversations := v.Data.GetConversations()
 	if len(conversations) == 0 {
+		log.Printf("History sync: received %s chunk %d (%d%%) with no conversations", v.Data.GetSyncType(), v.Data.GetChunkOrder(), v.Data.GetProgress())
 		return
 	}
 	stored := 0
+	failed := 0
 	for _, conv := range conversations {
 		chatJID, err := types.ParseJID(conv.GetID())
 		if err != nil {
+			failed++
+			log.Printf("History sync: invalid conversation JID %q: %v", conv.GetID(), err)
 			continue
 		}
 		for _, histMsg := range conv.GetMessages() {
@@ -654,7 +661,13 @@ func (a *Api) processHistorySync(v *events.HistorySync) {
 				continue
 			}
 			parsedMsg, err := a.waClient.ParseWebMessage(chatJID, webMsg)
-			if err != nil || parsedMsg.Message == nil {
+			if err != nil {
+				failed++
+				log.Printf("History sync: failed to parse message %q in %s: %v", webMsg.GetKey().GetID(), chatJID, err)
+				continue
+			}
+			if parsedMsg.Message == nil {
+				failed++
 				continue
 			}
 			// ParseWebMessage doesn't unwrap containers (ephemeral/view-once)
@@ -666,9 +679,68 @@ func (a *Api) processHistorySync(v *events.HistorySync) {
 			parsedHTML := a.processMessageText(parsedMsg.Message)
 			if a.messageStore.ProcessMessageEvent(a.ctx, a.waClient.Store.LIDs, parsedMsg, parsedHTML) != "" {
 				stored++
+			} else {
+				failed++
 			}
 		}
+		a.signalHistorySync(canonicalUserJID(a.ctx, a.waClient, chatJID).String())
 	}
-	log.Printf("History sync: stored %d messages from %d conversations", stored, len(conversations))
+	log.Printf("History sync: type=%s chunk=%d progress=%d stored=%d skipped_or_failed=%d conversations=%d", v.Data.GetSyncType(), v.Data.GetChunkOrder(), v.Data.GetProgress(), stored, failed, len(conversations))
 	runtime.EventsEmit(a.ctx, "wa:chat_list_refresh")
+}
+
+func (a *Api) signalHistorySync(chatJID string) {
+	a.historyMu.Lock()
+	waiters := a.historyWaiters[chatJID]
+	delete(a.historyWaiters, chatJID)
+	a.historyMu.Unlock()
+	for _, waiter := range waiters {
+		close(waiter)
+	}
+}
+
+// requestHistory asks the primary device for messages immediately preceding
+// anchorID and waits briefly for the resulting HistorySync event. A timeout is
+// not an error: phones may be offline or may have no older history.
+func (a *Api) requestHistory(chatJID, anchorID string, count int) error {
+	anchor, err := a.messageStore.GetMessageInfo(chatJID, anchorID)
+	if err != nil {
+		return fmt.Errorf("load history anchor: %w", err)
+	}
+	waiterKey := canonicalUserJID(a.ctx, a.waClient, anchor.Chat).String()
+	waiter := make(chan struct{})
+	a.historyMu.Lock()
+	a.historyWaiters[waiterKey] = append(a.historyWaiters[waiterKey], waiter)
+	a.historyMu.Unlock()
+
+	removeWaiter := func() {
+		a.historyMu.Lock()
+		waiters := a.historyWaiters[waiterKey]
+		for i, candidate := range waiters {
+			if candidate == waiter {
+				a.historyWaiters[waiterKey] = append(waiters[:i], waiters[i+1:]...)
+				break
+			}
+		}
+		if len(a.historyWaiters[waiterKey]) == 0 {
+			delete(a.historyWaiters, waiterKey)
+		}
+		a.historyMu.Unlock()
+	}
+
+	if _, err = a.waClient.SendPeerMessage(a.ctx, a.waClient.BuildHistorySyncRequest(anchor, count)); err != nil {
+		removeWaiter()
+		return fmt.Errorf("request history from primary device: %w", err)
+	}
+
+	select {
+	case <-waiter:
+		return nil
+	case <-time.After(15 * time.Second):
+		removeWaiter()
+		return nil
+	case <-a.ctx.Done():
+		removeWaiter()
+		return a.ctx.Err()
+	}
 }

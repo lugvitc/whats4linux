@@ -53,7 +53,7 @@ flowchart LR
 ### Messaging
 - One-to-one chats
 - Group chats
-- Full chat history sync (TODO)
+- Initial and on-demand chat history sync
 
 ### Media & Storage
 - Linux-native media cache

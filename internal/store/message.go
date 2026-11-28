@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"regexp"
 	"strings"
@@ -623,7 +624,12 @@ func (ms *MessageStore) ProcessMessageEvent(ctx context.Context, sd store.LIDSto
 		Sender:      sender,
 	}
 
-	ms.chatListMap.Set(chat, chatMsg)
+	// History syncs (especially on-demand backfills) contain old messages and
+	// may arrive newest-first. Never let one of those replace a newer chat-list
+	// preview that is already cached.
+	if current, ok := ms.chatListMap.Get(chat); !ok || chatMsg.MessageTime >= current.MessageTime {
+		ms.chatListMap.Set(chat, chatMsg)
+	}
 
 	err := ms.InsertMessage(&msg.Info, msg.Message, parsedHTML)
 	if err != nil {
@@ -631,6 +637,34 @@ func (ms *MessageStore) ProcessMessageEvent(ctx context.Context, sd store.LIDSto
 		return ""
 	}
 	return msg.Info.ID
+}
+
+// GetMessageInfo returns the minimal message metadata required to anchor an
+// on-demand history request. Message bodies aren't needed by whatsmeow.
+func (ms *MessageStore) GetMessageInfo(chatJID, messageID string) (*types.MessageInfo, error) {
+	var sender string
+	var timestamp int64
+	var isFromMe bool
+	err := ms.db.QueryRow(
+		`SELECT sender_jid, timestamp, is_from_me FROM messages WHERE chat_jid = ? AND message_id = ? LIMIT 1`,
+		chatJID, messageID,
+	).Scan(&sender, &timestamp, &isFromMe)
+	if err != nil {
+		return nil, err
+	}
+	chat, err := types.ParseJID(chatJID)
+	if err != nil {
+		return nil, fmt.Errorf("parse history anchor chat JID: %w", err)
+	}
+	senderJID, err := types.ParseJID(sender)
+	if err != nil {
+		return nil, fmt.Errorf("parse history anchor sender JID: %w", err)
+	}
+	return &types.MessageInfo{
+		MessageSource: types.MessageSource{Chat: chat, Sender: senderJID, IsFromMe: isFromMe},
+		ID:            messageID,
+		Timestamp:     time.Unix(timestamp, 0),
+	}, nil
 }
 
 // InsertMessage inserts a new message into messages.db
