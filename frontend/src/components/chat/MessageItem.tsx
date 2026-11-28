@@ -25,7 +25,6 @@ import { isMe } from "../../lib/self"
 import { formatPhone, phoneFromJID } from "../../lib/utils"
 import { LRUCache } from "../../lib/lruCache"
 
-const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏"]
 const EmojiPicker = lazy(() => import("./EmojiPickerLazy"))
 
 interface MessageItemProps {
@@ -141,10 +140,10 @@ export function MessageItem({
   const getSenderInfo = useContactStore(state => state.getSenderInfo)
   const addReactionToMessage = useMessageStore(state => state.addReactionToMessage)
   const [showReactionPicker, setShowReactionPicker] = useState(false)
-  const [showFullEmoji, setShowFullEmoji] = useState(false)
   const [showReactionDetails, setShowReactionDetails] = useState(false)
   const [textExpanded, setTextExpanded] = useState(false)
   const reactionPillRef = useRef<HTMLDivElement>(null)
+  const reactionPickerRef = useRef<HTMLDivElement>(null)
   // Derived directly from the message; no state/effect needed (a state+effect
   // here forced an extra re-render per message on mount).
   const reactions = message.reactions ?? []
@@ -185,8 +184,27 @@ export function MessageItem({
     SendReaction(chatId, senderJID, message.Info.ID, finalEmoji).catch(() => {})
     addReactionToMessage(chatId, message.Info.ID, finalEmoji, "me")
     setShowReactionPicker(false)
-    setShowFullEmoji(false)
   }
+
+  useEffect(() => {
+    if (!showReactionPicker) return
+
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (!reactionPickerRef.current?.contains(event.target as Node)) {
+        setShowReactionPicker(false)
+      }
+    }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setShowReactionPicker(false)
+    }
+
+    document.addEventListener("pointerdown", closeOnOutsideClick)
+    document.addEventListener("keydown", closeOnEscape)
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsideClick)
+      document.removeEventListener("keydown", closeOnEscape)
+    }
+  }, [showReactionPicker])
 
   const isPinned = pinnedIds?.has(message.Info.ID) ?? false
 
@@ -469,52 +487,17 @@ export function MessageItem({
 
           {showReactionPicker && (
             <div
-              className={clsx(
-                "absolute bottom-9 z-9999 flex w-max items-center gap-1 rounded-full bg-white px-2 py-1 shadow-lg dark:bg-dark-tertiary",
-                isFromMe ? "right-0" : "left-0",
-              )}
+              ref={reactionPickerRef}
+              className={clsx("absolute bottom-9 z-9999", isFromMe ? "right-0" : "left-0")}
             >
-              {QUICK_REACTIONS.map(emoji => (
-                <button
-                  key={emoji}
-                  onClick={() => sendReaction(emoji)}
-                  className={clsx(
-                    "rounded-full px-1 text-lg leading-none transition-transform hover:scale-125",
-                    myReaction === emoji && "bg-blue-500/40",
-                  )}
-                >
-                  {emoji}
-                </button>
-              ))}
-              <button
-                onClick={() => {
-                  setShowFullEmoji(true)
-                  setShowReactionPicker(false)
-                }}
-                title="More"
-                className="ml-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/10 text-sm dark:bg-white/10"
-              >
-                +
-              </button>
-            </div>
-          )}
-
-          {showFullEmoji && (
-            <div className="absolute bottom-9 z-9999" style={isFromMe ? { right: 0 } : { left: 0 }}>
               <Suspense
                 fallback={
-                  <div className="rounded bg-white p-2 text-xs shadow dark:bg-dark-tertiary">
+                  <div className="rounded-full bg-white px-3 py-2 text-xs shadow dark:bg-dark-tertiary">
                     Loading…
                   </div>
                 }
               >
-                <EmojiPicker
-                  onEmojiSelect={(e: any) => sendReaction(e.native)}
-                  onClickOutside={() => setShowFullEmoji(false)}
-                  theme="auto"
-                  previewPosition="none"
-                  skinTonePosition="none"
-                />
+                <EmojiPicker onEmojiClick={emoji => sendReaction(emoji.emoji)} reactions />
               </Suspense>
             </div>
           )}

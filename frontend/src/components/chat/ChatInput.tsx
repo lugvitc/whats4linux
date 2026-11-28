@@ -13,7 +13,14 @@ import { useContactStore } from "../../store/useContactStore"
 import { PollDialog } from "./PollDialog"
 import { ContactShareDialog } from "./ContactShareDialog"
 
-const EmojiPicker = lazy(() => import("./EmojiPickerLazy"))
+const loadEmojiPicker = () => import("./EmojiPickerLazy")
+const EmojiPicker = lazy(loadEmojiPicker)
+
+function preloadEmojiPicker() {
+  void loadEmojiPicker().catch(() => {
+    // Surface loading errors only if the user opens the picker.
+  })
+}
 interface ChatInputProps {
   chatId: string
   inputText: string
@@ -51,16 +58,19 @@ const FILE_TYPE_ICONS = {
 
 interface IconButtonProps {
   onClick: () => void
+  onIntent?: () => void
   title: string
   children: React.ReactNode
   ref?: React.RefObject<HTMLButtonElement>
 }
 
 const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
-  ({ onClick, title, children }, ref) => (
+  ({ onClick, onIntent, title, children }, ref) => (
     <button
       ref={ref}
       onClick={onClick}
+      onPointerEnter={onIntent}
+      onFocus={onIntent}
       className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
       title={title}
     >
@@ -344,8 +354,8 @@ export function ChatInput({
     }
   }, [mentionSuggestions])
 
-  const handleEmojiSelect = (emoji: any) => {
-    onEmojiClick(emoji.native)
+  const handleEmojiSelect = (emoji: { emoji: string }) => {
+    onEmojiClick(emoji.emoji)
   }
 
   const renderReplyPreview = () => {
@@ -396,14 +406,12 @@ export function ChatInput({
   return (
     <div className="relative mx-3 mb-3 mt-1.5">
       {showEmojiPicker && (
-        <div ref={emojiPickerRef} className="absolute bottom-full left-0 z-50 mb-2">
+        <div
+          ref={emojiPickerRef}
+          className="absolute bottom-full left-0 z-50 mb-2 w-full max-w-[560px]"
+        >
           <Suspense fallback={<div className="p-4 text-sm">Loading emojis...</div>}>
-            <EmojiPicker
-              onEmojiSelect={handleEmojiSelect}
-              theme="auto"
-              previewPosition="none"
-              skinTonePosition="search"
-            />
+            <EmojiPicker onEmojiClick={handleEmojiSelect} />
           </Suspense>
         </div>
       )}
@@ -429,7 +437,12 @@ export function ChatInput({
       <div className="flex items-end gap-2">
         <div className="flex flex-1 items-center rounded-full border border-gray-200 bg-light-bg px-1.5 dark:border-transparent dark:bg-[#242626]">
           {/* Emoji Button */}
-          <IconButton ref={emojiButtonRef} onClick={onToggleEmojiPicker} title="Emoji">
+          <IconButton
+            ref={emojiButtonRef}
+            onClick={onToggleEmojiPicker}
+            onIntent={preloadEmojiPicker}
+            title="Emoji"
+          >
             <EmojiIcon />
           </IconButton>
 
