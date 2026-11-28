@@ -14,7 +14,8 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (!id.includes("node_modules")) return
-          if (id.includes("@emoji-mart")) return "emoji"
+          // Let Rollup keep the picker and its data behind the dynamic import.
+          if (id.includes("emoji-picker-react") || id.includes("shipstyles")) return
           if (id.includes("gsap")) return "animation"
           if (id.includes("zustand") || id.includes("immer")) return "state"
           if (id.includes("react-virtuoso") || id.includes("react-resizable-panels")) {
